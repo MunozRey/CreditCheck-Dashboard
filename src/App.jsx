@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import AuthGate from './components/AuthGate.jsx';             // C-01
+import GdprBanner, { ClearDataButton } from './components/GdprBanner.jsx'; // C-03
 import UploadZone from './components/UploadZone.jsx';
 import ExportModal from './components/ExportModal.jsx';
 import KeyboardHelp from './components/KeyboardHelp.jsx';
@@ -123,9 +125,15 @@ function AppInner() {
   const [liveStatus, setLiveStatus] = useState(null);
   const [fetching, setFetching]     = useState(false);
   const userUploadedRef             = useRef(false);
+  // H-02: Rate limiting — track last fetch timestamp to enforce min interval
+  const lastFetchRef                = useRef(0);
+  const MIN_FETCH_INTERVAL_MS       = 5 * 60 * 1000; // 5 minutes minimum between manual fetches
 
-  const runFetch = useCallback(async () => {
+  const runFetch = useCallback(async (force = false) => {
     if (userUploadedRef.current) return;
+    // H-02: Enforce minimum interval between fetches (manual button clicks)
+    if (!force && Date.now() - lastFetchRef.current < MIN_FETCH_INTERVAL_MS) return;
+    lastFetchRef.current = Date.now();
     setFetching(true);
     try {
       const d = await fetchLiveData(processRows);
@@ -140,8 +148,9 @@ function AppInner() {
   }, [resetCountdown]);
 
   useEffect(() => {
-    runFetch();
-    const id = setInterval(runFetch, 60 * 60 * 1000);
+    // Initial fetch on mount is always allowed (force=true)
+    runFetch(true);
+    const id = setInterval(() => runFetch(true), 60 * 60 * 1000);
     return () => clearInterval(id);
   }, [runFetch]);
 
@@ -351,6 +360,13 @@ function AppInner() {
               </svg>
             </button>
 
+            {/* C-03: GDPR — Clear Data button */}
+            <ClearDataButton T={T} onClearData={() => {
+              const keys = ['cc_partners','cc_month_data','cc_starred','cc_settings'];
+              keys.forEach(k => { try { window.storage?.set(k,'').catch(()=>{}); } catch(_){} });
+              window.location.reload();
+            }} />
+
             {/* Export button */}
             <button className="cc-btn" onClick={() => setShowReportModal(true)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:7, color:T.textSub, fontWeight:500, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1 }}>
               <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 1v7M3 5.5l3 3 3-3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -475,6 +491,17 @@ function AppInner() {
         return null;
       })()}
 
+      {/* C-03: GDPR consent modal + retention warning */}
+      <GdprBanner
+        T={T}
+        snapshotDate={snapshotDate}
+        onClearData={() => {
+          const keys = ['cc_partners','cc_month_data','cc_starred','cc_settings'];
+          keys.forEach(k => { try { window.storage?.set(k,'').catch(()=>{}); } catch(_){} });
+          window.location.reload();
+        }}
+      />
+
       {/* Report / Export modal */}
       {showReportModal && (
         <ExportModal data={data} onClose={() => setShowReportModal(false)}/>
@@ -505,9 +532,12 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ErrorBoundary>
-        <AppInner />
-      </ErrorBoundary>
+      {/* C-01: AuthGate — password prompt if VITE_AUTH_PASSWORD_HASH is set */}
+      <AuthGate>
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      </AuthGate>
     </ThemeProvider>
   );
 }

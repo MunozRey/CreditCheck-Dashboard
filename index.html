@@ -4,6 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CreditCheck Dashboard</title>
+
+    <!-- H-05: CSRF token — included in API fetch headers via X-CSRF-Token.
+         Value is regenerated on each page load (client-side guard). -->
+    <meta name="csrf-token" content="" id="csrf-meta" />
+    <script>
+      document.getElementById('csrf-meta').setAttribute(
+        'content',
+        typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+      );
+    </script>
+
+    <!-- M-02: Content Security Policy
+         Restricts resource loading to known trusted origins.
+         Notes:
+           - 'unsafe-inline' for styles is required by the inline-style-heavy React app.
+             Migrate to CSS classes to eventually remove this exception.
+           - fonts.googleapis.com / fonts.gstatic.com are required for IBM Plex / Geist.
+           - No CDN script sources needed — xlsx is now bundled locally (M-01 fix).
+           - connect-src allows fetching from the configured API endpoint domain.
+             Update if your VITE_API_ENDPOINT is on a different domain.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src  'self' 'unsafe-inline';
+        style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src    https://fonts.gstatic.com data:;
+        img-src     'self' data:;
+        connect-src 'self' https://ibancheck.io ws://localhost:5173 ws://localhost:*;
+        frame-ancestors 'none';
+        base-uri    'self';
+        form-action 'self';
+      "
+    />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23005EFF'/><path d='M16 6L8 11v8c0 4.4 3.4 8.5 8 9.5 4.6-1 8-5.1 8-9.5v-8L16 6z' fill='white'/><path d='M13 16l2.5 2.5 4-4' stroke='%23005EFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>" />
     <!-- Google Fonts — loaded once at HTML level (not re-injected on theme toggle) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

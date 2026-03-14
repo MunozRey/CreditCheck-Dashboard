@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { VERTICALS_DEF, applyVehicleFilter as filterByVehicle, COUNTRY_META } from '../constants/verticals.js';
+import { auditLog } from '../utils/auditLog.js'; // M-04: audit trail for exports
 
 export default function ExportModal({ onClose, data }) {
   const { T } = useTheme();
@@ -108,6 +109,15 @@ export default function ExportModal({ onClose, data }) {
     setExportContent(content);
     setShowCopy(true);
     setCopied(false);
+    // M-04: Audit log — record what was exported (no PII in metadata)
+    auditLog('lead_export', {
+      format: fmt,
+      rowCount: filtered.length,
+      fields: activeFields.map(f => f.key), // field names only, not values
+      hasBC:  cats.bc,
+      hasFS:  cats.fs,
+      hasInc: cats.inc,
+    });
   };
 
   const downloadFile = (content, fmtOverride) => {
