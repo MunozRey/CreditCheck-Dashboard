@@ -61,36 +61,94 @@ function applyTheme(themeName) {
   let el = document.getElementById("cc-global-styles");
   if (!el) { el = document.createElement("style"); el.id = "cc-global-styles"; document.head.appendChild(el); }
   const t = THEMES[themeName];
+  // Encode muted color for SVG chevron (# → %23)
+  const chevron = t.muted.replace("#", "%23");
   el.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700;800;900&display=swap');
     *, *::before, *::after { box-sizing: border-box; }
-    body { background: ${t.bg} !important; font-family: 'IBM Plex Sans', 'Geist', sans-serif; }
+    body {
+      background: ${t.bg} !important;
+      font-family: 'IBM Plex Sans', 'Geist', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    /* ── Scrollbars ── */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: ${t.scrollThumb}; border-radius: 99px; }
     ::-webkit-scrollbar-thumb:hover { background: ${t.borderHi}; }
-    input[type=date]::-webkit-calendar-picker-indicator { filter: ${t.isDark ? "invert(0.6)" : "none"}; }
+    /* ── Date picker icon tint in dark mode ── */
+    input[type=date]::-webkit-calendar-picker-indicator { filter: ${t.isDark ? "invert(0.6)" : "none"}; opacity: 0.7; cursor: pointer; }
+    /* ── Select: remove native OS appearance, add custom chevron ── */
+    select {
+      -webkit-appearance: none;
+      appearance: none;
+      padding-right: 28px !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='${chevron}' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 8px center !important;
+      background-size: 10px 6px !important;
+    }
     select option { background: ${t.surface}; color: ${t.text}; }
+    /* ── Input appearance resets (Safari/iOS) ── */
+    input[type=date], input[type=time], input[type=month] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    /* ── Remove iOS tap highlight flash on interactive elements ── */
+    button, a, label, [role=button], [tabindex="0"] {
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* ── Animations ── */
     @keyframes cc-fade-in { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
     @keyframes cc-spin { to { transform: rotate(360deg); } }
     .cc-tab-content { animation: cc-fade-in 0.18s ease; }
+    /* ── Table row hover ── */
     .cc-row:hover td { background: ${t.rowHover} !important; }
+    /* ── Button & card interactions ── */
     .cc-btn { transition: all 0.14s ease; cursor: pointer; }
     .cc-btn:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
     .cc-card { transition: border-color 0.14s ease; }
     .cc-card:hover { border-color: ${t.borderHi} !important; }
+    /* ── Input base style ── */
     .cc-input {
       background: ${t.surface2}; color: ${t.text};
       border: 1px solid ${t.border}; border-radius: 7px;
       padding: 6px 10px; font-size: 11px; font-family: 'IBM Plex Sans', 'Geist', sans-serif;
       outline: none; transition: border-color .14s;
+      -webkit-appearance: none; appearance: none;
     }
     .cc-input:focus { border-color: ${t.blue}; box-shadow: 0 0 0 3px ${t.accentGlow}; }
     .cc-input::placeholder { color: ${t.muted}; }
+    /* ── Focus rings ── */
     button:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
     a:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
+    /* ── Sticky header support (Safari requires -webkit-sticky) ── */
+    .cc-sticky { position: -webkit-sticky; position: sticky; }
+    /* ── Navigation — scrollable on narrow screens ── */
+    .cc-nav { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+    .cc-nav::-webkit-scrollbar { display: none; }
+    /* ── Table wrappers ── */
+    .cc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* ── Responsive breakpoints ── */
+    @media (max-width: 900px) {
+      .cc-kpi-strip { grid-template-columns: repeat(2,1fr) !important; }
+      .cc-leads-layout { grid-template-columns: 1fr !important; }
+      .cc-tab-content { padding: 16px 14px !important; }
+    }
+    @media (max-width: 640px) {
+      .cc-tab-content { padding: 12px 10px !important; }
+      .cc-export-modal { width: 95vw !important; max-height: 95vh !important; border-radius: 12px !important; }
+      .cc-export-body { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .cc-kpi-strip { grid-template-columns: 1fr !important; }
+      .cc-export-modal { width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; }
+    }
   `;
-  try { localStorage.setItem("cc_theme", themeName); } catch(_){}
+  try { window.storage?.set("cc_theme", themeName); } catch(_){}
 }
 
 // CAT_STYLE declared first (empty) so applyTheme can mutate it safely
@@ -402,7 +460,7 @@ function SectionTitle({children,action}) {
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
       {typeof children==="string"
-        ?<span style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:1.8,textTransform:"uppercase",fontFamily:"'IBM Plex Mono',monospace"}}>{children}</span>
+        ?<span style={{fontSize:11,fontWeight:700,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'IBM Plex Mono',monospace"}}>{children}</span>
         :children}
       {action&&<div>{action}</div>}
     </div>
@@ -495,7 +553,7 @@ function CustomTooltip({active,payload,label,formatter}) {
       padding:"12px 16px",
       border:`1px solid ${T.borderHi}`,
       boxShadow:"0 4px 24px rgba(0,0,0,0.15)",
-      minWidth:140,
+      minWidth:180,
       fontFamily:"'Geist',sans-serif",
     }}>
       <div style={{
@@ -550,15 +608,17 @@ function UploadZone({onData}) {
 
   const borderColor={idle:T.border,ok:T.green,err:T.red,loading:T.blue}[status];
   return (
-    <div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
+    <div role="button" tabIndex={0}
+      onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
       onDrop={e=>{e.preventDefault();setDrag(false);handle(e.dataTransfer.files[0]);}}
       onClick={()=>fileRef.current?.click()}
+      onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileRef.current?.click();}}}
       style={{
         border:`1px dashed ${drag?T.blue:T.borderHi}`,
         borderRadius:12,padding:"28px 20px",textAlign:"center",
-        background:drag?"rgba(59,130,246,0.06)":T.surface2,
+        background:drag?T.accentGlow:T.surface2,
         cursor:"pointer",transition:"all .2s",
-        boxShadow:drag?`0 0 0 3px rgba(59,130,246,0.15)`:"none",
+        boxShadow:drag?`0 0 0 3px ${T.accentGlow}`:"none",
       }}>
       <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={e=>handle(e.target.files[0])}/>
       <div style={{fontSize:24,marginBottom:10,lineHeight:1}}>
@@ -611,9 +671,9 @@ function LeadsTab({data}) {
   const colCount=showEmail?4:3;
 
   return (
-    <div style={{display:"grid",gridTemplateColumns:"188px 1fr",gap:16}}>
+    <div className="cc-leads-layout" style={{display:"grid",gridTemplateColumns:"188px 1fr",gap:16}}>
       <Card style={{padding:"12px 10px",height:"fit-content"}}>
-        <div style={{fontSize:9,fontWeight:800,color:T.muted,marginBottom:10,letterSpacing:1.5,textTransform:"uppercase",padding:"0 6px"}}>Categories</div>
+        <div style={{fontSize:10,fontWeight:800,color:T.muted,marginBottom:10,letterSpacing:1.5,textTransform:"uppercase",padding:"0 6px"}}>Categories</div>
         {["Bank Connected","Form Submitted","Incomplete"].map(c=>{
           const count=(data[c]||[]).length,active=cat===c,s=CAT_STYLE[c];
           return (
@@ -645,9 +705,9 @@ function LeadsTab({data}) {
 
           {/* Controls — only visible when table is open */}
           {tableOpen && (<>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             <span style={{fontSize:11,color:T.muted}}>→</span>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             {(dateFrom||dateTo)&&<button onClick={()=>{setDateFrom("");setDateTo("");}} style={{fontSize:12,color:T.red,background:"none",border:"none",cursor:"pointer",fontWeight:700}}>✕</button>}
             <input placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",fontSize:11,width:180,outline:"none",color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             <select value={purposeFilter} onChange={e=>setPurposeFilter(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,maxWidth:150,fontFamily:"'Geist',sans-serif"}}>
@@ -675,6 +735,8 @@ function LeadsTab({data}) {
           {/* Collapse / expand toggle — always visible */}
           <button
             onClick={()=>setTableOpen(v=>!v)}
+            aria-expanded={tableOpen}
+            aria-controls="leads-table-section"
             title={tableOpen?"Collapse table":"Expand table"}
             style={{
               display:"flex",alignItems:"center",gap:5,
@@ -694,12 +756,12 @@ function LeadsTab({data}) {
 
         {/* ── Table — hidden when collapsed ── */}
         {tableOpen && (
-          <div style={{overflowY:"auto",maxHeight:520}}>
+          <div id="leads-table-section" className="cc-table-wrap" style={{overflowY:"auto",overflowX:"auto",maxHeight:520}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead>
                 <tr style={{background:T.surface2,position:"sticky",top:0,zIndex:1}}>
                   {[{k:"name",l:"Name"},showEmail&&{k:"email",l:"Email"},{k:"purpose",l:"Purpose"},{k:"created",l:"Date"}].filter(Boolean).map(col=>(
-                    <th key={col.k} onClick={()=>setSortBy(col.k)} style={{padding:"9px 14px",textAlign:"left",fontWeight:700,color:sortBy===col.k?T.navy:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`,cursor:"pointer",userSelect:"none"}}>
+                    <th key={col.k} onClick={()=>setSortBy(col.k)} aria-sort={sortBy===col.k?"descending":"none"} style={{padding:"9px 14px",textAlign:"left",fontWeight:700,color:sortBy===col.k?T.navy:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`,cursor:"pointer",userSelect:"none"}}>
                       {col.l}{sortBy===col.k?" ↓":""}
                     </th>
                   ))}
@@ -714,7 +776,7 @@ function LeadsTab({data}) {
                         <span style={{fontWeight:600,color:T.text,fontSize:13}}>{row.name ? toTitleCase(row.name) : "—"}</span>
                       </div>
                     </td>
-                    {showEmail&&<td style={{padding:"10px 16px",color:T.muted,fontFamily:"'SF Mono',ui-monospace,monospace",fontSize:11,letterSpacing:-0.2}}>{row.email||"—"}</td>}
+                    {showEmail&&<td style={{padding:"10px 16px",color:T.muted,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace",fontSize:11,letterSpacing:-0.2}}>{row.email||"—"}</td>}
                     <td style={{padding:"10px 16px"}}>
                       {row.purpose
                         ? <span style={{display:"inline-block",padding:"3px 10px",borderRadius:20,background:`${T.blue}0D`,border:`1px solid ${T.blue}25`,fontSize:11,fontWeight:600,color:T.blue,textTransform:"capitalize"}}>{row.purpose.replace(/_/g," ")}</span>
@@ -827,7 +889,7 @@ function AnalyticsTab({data}) {
                 <div key={g} style={{padding:"12px",background:s.bg,borderRadius:8,textAlign:"center",border:`1px solid ${s.color}22`}}>
                   <div style={{fontSize:28,fontWeight:900,color:s.color}}>{g}</div>
                   <div style={{fontSize:10,fontWeight:700,color:s.color,marginTop:2}}>{s.label}</div>
-                  <div style={{fontSize:9,color:T.muted,marginTop:2}}>{s.desc}</div>
+                  <div style={{fontSize:10,color:T.muted,marginTop:2}}>{s.desc}</div>
                 </div>
               ))}
             </div>
@@ -888,11 +950,11 @@ function AnalyticsTab({data}) {
                 <div style={{display:"grid",gridTemplateColumns:bcOnlyMode?"1fr":"1fr 1fr",gap:6}}>
                   <div style={{background:CAT_STYLE["Bank Connected"].light,borderRadius:6,padding:"6px 4px",textAlign:"center"}}>
                     <div style={{fontSize:13,fontWeight:800,color:T.navy}}>{fmtNum(projBC)}</div>
-                    <div style={{fontSize:9,color:T.muted}}>BC</div>
+                    <div style={{fontSize:10,color:T.muted}}>BC</div>
                   </div>
                   {!bcOnlyMode&&<div style={{background:CAT_STYLE["Form Submitted"].light,borderRadius:6,padding:"6px 4px",textAlign:"center"}}>
                     <div style={{fontSize:13,fontWeight:800,color:T.blue}}>{fmtNum(projFS)}</div>
-                    <div style={{fontSize:9,color:T.muted}}>FS</div>
+                    <div style={{fontSize:10,color:T.muted}}>FS</div>
                   </div>}
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:T.muted,textAlign:"center"}}>{bcOnlyMode?"BC only":` BC Rate: ${projRate}%`}</div>
@@ -945,11 +1007,11 @@ function MonthNav({ y, m, onChange }) {
   const isToday = y === ty && m === tm;
   return (
     <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <button onClick={prev} style={{width:28,height:28,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontSize:14,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+      <button onClick={prev} style={{width:36,height:36,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontSize:14,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
       <div style={{minWidth:110,textAlign:"center"}}>
         <span style={{fontSize:14,fontWeight:800,color:T.text}}>{MONTHS[m]} {y}</span>
       </div>
-      <button onClick={next} disabled={isToday} style={{width:28,height:28,borderRadius:7,border:`1px solid ${T.border}`,background:isToday?T.surface2:T.surface2,cursor:isToday?"not-allowed":"pointer",fontSize:14,color:isToday?T.border:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+      <button onClick={next} disabled={isToday} style={{width:36,height:36,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:isToday?"not-allowed":"pointer",fontSize:14,color:isToday?T.border:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
     </div>
   );
 }
@@ -1031,7 +1093,7 @@ function RevenueTab({ partners, monthData }) {
               <thead>
                 <tr style={{background:T.surface2}}>
                   {["Partner","Model","BC Leads","BC Rev","FS Leads","FS Rev","Total"].map(h=>(
-                    <th key={h} style={{padding:"8px 14px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                    <th key={h} style={{padding:"8px 14px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1039,7 +1101,7 @@ function RevenueTab({ partners, monthData }) {
                 {partnerRows.map(p=>(
                   <tr key={p.id} style={{borderBottom:`1px solid ${T.surface2}`,opacity:p.active?1:0.45}} onMouseEnter={e=>e.currentTarget.style.background=T.rowHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"10px 14px",fontWeight:600,color:T.text}}>
-                      <span style={{color:p.active?T.green:T.muted,marginRight:6,fontSize:9}}>●</span>{p.name}
+                      <span style={{color:p.active?T.green:T.muted,marginRight:6,fontSize:10}}>●</span>{p.name}
                     </td>
                     <td style={{padding:"10px 14px",textAlign:"right"}}>
                       <span style={{padding:"2px 8px",borderRadius:20,background:`${MODEL_COLORS[p.model]}18`,color:MODEL_COLORS[p.model],fontSize:10,fontWeight:700}}>{p.model.toUpperCase()}</span>
@@ -1051,7 +1113,7 @@ function RevenueTab({ partners, monthData }) {
                     <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:T.navy,fontSize:13}}>{fmtEur(p.tot)}</td>
                   </tr>
                 ))}
-                <tr style={{background:T.surface2}}>
+                <tr style={{background:T.navy}}>
                   <td colSpan={2} style={{padding:"10px 14px",color:"#fff",fontWeight:800}}>TOTAL</td>
                   <td style={{padding:"10px 14px",textAlign:"right",color:"rgba(255,255,255,0.7)",fontWeight:700}}>{totBC||"—"}</td>
                   <td style={{padding:"10px 14px",textAlign:"right",color:"#fff",fontWeight:700}}>{fmtEur(totBCRev)}</td>
@@ -1082,9 +1144,9 @@ function RevenueTab({ partners, monthData }) {
                 const isActive = d.label===MONTHS[m].slice(0,3);
                 return (
                   <div key={i} style={{textAlign:"center",padding:"8px 4px",background:isActive?T.navy:T.surface2,borderRadius:7}}>
-                    <div style={{fontSize:9,fontWeight:700,color:isActive?"rgba(255,255,255,0.55)":T.muted,textTransform:"uppercase",letterSpacing:0.5}}>{d.label}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:isActive?"rgba(255,255,255,0.55)":T.muted,textTransform:"uppercase",letterSpacing:0.5}}>{d.label}</div>
                     <div style={{fontSize:11,fontWeight:800,color:isActive?"#fff":T.navy,marginTop:2}}>{d.rev>0?fmtEur(d.rev):"—"}</div>
-                    <div style={{fontSize:9,color:isActive?T.muted:T.muted}}>{d.leads>0?`${d.leads}L`:"—"}</div>
+                    <div style={{fontSize:10,color:isActive?T.muted:T.muted}}>{d.leads>0?`${d.leads}L`:"—"}</div>
                   </div>
                 );
               })}
@@ -1231,7 +1293,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                     {/* BC */}
                     <div style={{padding:12,background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.navy}`}}>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>BC Leads</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>BC Leads</div>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <PreciseInput value={e.bcCount} onChange={v=>updEntry(p.id,{bcCount:v})} color={T.navy} width={60}/>
                         <span style={{fontSize:11,color:T.muted}}>leads</span>
@@ -1261,7 +1323,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
 
                     {/* FS */}
                     <div style={{padding:12,background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.blue}`}}>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>FS Leads</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>FS Leads</div>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <PreciseInput value={e.fsCount} onChange={v=>updEntry(p.id,{fsCount:v})} color={T.blue} width={60}/>
                         <span style={{fontSize:11,color:T.muted}}>leads</span>
@@ -1293,7 +1355,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                   {/* Bottom row: note + total */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:12,alignItems:"center"}}>
                     <div>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:4}}>Note</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:4}}>Note</div>
                       <input
                         value={e.note}
                         onChange={ev=>updEntry(p.id,{note:ev.target.value})}
@@ -1302,7 +1364,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                       />
                     </div>
                     <div style={{textAlign:"right",padding:"10px 16px",background:T.navy,borderRadius:8,minWidth:100}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.8}}>Total</div>
+                      <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.8}}>Total</div>
                       <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{fmtEur(tot)}</div>
                     </div>
                   </div>
@@ -1330,7 +1392,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {["Partner","Leads","Revenue"].map(h=>(
-                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1349,7 +1411,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                       </tr>
                     );
                   })}
-                  <tr style={{background:T.surface2}}>
+                  <tr style={{background:T.navy}}>
                     <td style={{padding:"8px 12px",color:"#fff",fontWeight:800,fontSize:11}}>TOTAL</td>
                     <td style={{padding:"8px 12px",textAlign:"right",color:"#fff",fontWeight:700}}>{totLeads>0?totLeads:"—"}</td>
                     <td style={{padding:"8px 12px",textAlign:"right",color:"#fff",fontWeight:800}}>{fmtEur(totRev)}</td>
@@ -1472,7 +1534,7 @@ function InsightsTab({data}) {
     <div style={{display:"grid",gap:20}}>
 
       {/* ── Top KPIs ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:14}}>
         <KpiCard label="Avg Income"        value={fmtK(avg(allIncomes))}   sub={`Median ${fmtK(median(allIncomes))}`}  accent={T.navy}/>
         <KpiCard label="Avg Loan Request"  value={fmtK(avg(allLoans))}     sub={`Median ${fmtK(median(allLoans))}`}   accent={T.blue}/>
         <KpiCard label="BC Avg Income"     value={fmtK(avg(bcIncomes))}    sub={`vs FS ${fmtK(avg(fsIncomes))}`}      accent={T.blue2}/>
@@ -1590,7 +1652,7 @@ function InsightsTab({data}) {
                 <div key={label}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <div style={{display:"flex",alignItems:"center",gap:7}}>
-                      <span style={{fontSize:9,fontWeight:700,fontFamily:"'IBM Plex Mono',monospace",
+                      <span style={{fontSize:10,fontWeight:700,fontFamily:"'IBM Plex Mono',monospace",
                         background:`${color}20`,color,border:`1px solid ${color}40`,
                         borderRadius:4,padding:"1px 5px",letterSpacing:0.5}}>
                         {range}
@@ -1710,7 +1772,7 @@ function DataQualityTab({data}) {
 
   const issueColor = { error: T.red, warning: T.amber, ok: T.green };
   const issueIcon  = { error: "🔴", warning: "🟡", ok: "✅" };
-  const issueBg    = { error: T.redBg, warning: T.amberBg, ok: "#F0FDF4" };
+  const issueBg    = { error: T.redBg, warning: T.amberBg, ok: T.greenBg };
   const issueBorder= { error: "#FCA5A5", warning: "rgba(245,158,11,0.3)", ok: "rgba(16,185,129,0.3)" };
 
   // ── Duplicates stats (derived from what the parser removed) ────────────────
@@ -1817,7 +1879,7 @@ function DataQualityTab({data}) {
               return (
                 <div key={d.domain}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                    <span style={{fontSize:12,color:T.text,fontFamily:"monospace"}}>@{d.domain}</span>
+                    <span style={{fontSize:12,color:T.text,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace"}}>@{d.domain}</span>
                     <span style={{fontSize:12,fontWeight:700,color:colors[i]}}>{d.count} <span style={{color:T.muted,fontWeight:400}}>({d.pct}%)</span></span>
                   </div>
                   <div style={{height:6,background:T.surface2,borderRadius:4}}>
@@ -1865,7 +1927,7 @@ function DataQualityTab({data}) {
                 {singleName.slice(0,8).map((r,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:T.surface2,borderRadius:6,fontSize:11}}>
                     <span style={{fontWeight:600,color:T.text}}>{r.name||"—"}</span>
-                    <span style={{color:T.muted,fontFamily:"monospace"}}>{r.email}</span>
+                    <span style={{color:T.muted,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace"}}>{r.email}</span>
                   </div>
                 ))}
                 {singleName.length > 8 && <div style={{fontSize:10,color:T.muted,textAlign:"center",padding:"4px"}}>+{singleName.length-8} more</div>}
@@ -1957,7 +2019,7 @@ function CountriesTab({ data }) {
             }}>
               <div style={{fontSize:22,marginBottom:4}}>{meta.flag}</div>
               <div style={{fontSize:12,fontWeight:800,color:isAct?"#fff":T.text,marginBottom:1}}>{meta.label}</div>
-              <div style={{fontSize:9,color:isAct?"rgba(255,255,255,0.6)":T.muted,fontStyle:"italic",marginBottom:4}}>{meta.lang}</div>
+              <div style={{fontSize:10,color:isAct?"rgba(255,255,255,0.85)":T.muted,fontStyle:"italic",marginBottom:4}}>{meta.lang}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:700,color:meta.color}}>{stat.total} leads</span>
                 <span style={{width:1,height:10,background:isAct?"rgba(255,255,255,0.3)":T.border,flexShrink:0}}/>
@@ -2020,7 +2082,7 @@ function CountriesTab({ data }) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {["Country","Leads","BC","BC%","Avg Loan"].map(h=>(
-                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Country"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Country"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2031,7 +2093,7 @@ function CountriesTab({ data }) {
                     const avg  = stat.loans.length?Math.round(stat.loans.reduce((s,v)=>s+v,0)/stat.loans.length):null;
                     const isAct = active === code;
                     return (
-                      <tr key={code} onClick={()=>setActive(code)} style={{borderBottom:`1px solid ${T.surface2}`,cursor:"pointer",background:isAct?`${meta.color}0D`:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background=`${meta.color}0D`} onMouseLeave={e=>e.currentTarget.style.background=isAct?`${meta.color}0D`:"transparent"}>
+                      <tr key={code} onClick={()=>setActive(code)} style={{borderBottom:`1px solid ${T.surface2}`,cursor:"pointer",background:isAct?`${meta.color}1A`:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background=`${meta.color}1A`} onMouseLeave={e=>e.currentTarget.style.background=isAct?`${meta.color}1A`:"transparent"}>
                         <td style={{padding:"8px 12px",fontWeight:600,color:T.text}}>{meta.flag} {meta.label}</td>
                         <td style={{padding:"8px 12px",textAlign:"right",color:T.muted}}>{stat.total}</td>
                         <td style={{padding:"8px 12px",textAlign:"right",color:T.muted}}>{stat.bc}</td>
@@ -2168,7 +2230,7 @@ function VerticalsTab({data}) {
   return (
     <div style={{display:"grid",gap:18}}>
       {/* Vertical Selector Cards — 5 verticals, each product correctly separated */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
         {Object.values(VERTICALS_DEF).map(v=>{
           const base = [...bc,...fs].filter(r=>v.purposes.includes(r.purpose));
           const bBC  = bc.filter(r=>v.purposes.includes(r.purpose));
@@ -2184,7 +2246,7 @@ function VerticalsTab({data}) {
             }}>
               <div style={{fontSize:20,marginBottom:7}}>{v.icon}</div>
               <div style={{fontSize:13,fontWeight:900,color:active?"#fff":T.text,letterSpacing:-0.2}}>{v.label}</div>
-              <div style={{fontSize:10,color:active?"rgba(255,255,255,0.6)":T.muted,margin:"3px 0 10px",lineHeight:1.4}}>{v.desc}</div>
+              <div style={{fontSize:10,color:active?"rgba(255,255,255,0.85)":T.muted,margin:"3px 0 10px",lineHeight:1.4}}>{v.desc}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:800,color:active?"#fff":v.color}}>{vl.length} leads</span>
                 <span style={{width:1,height:10,background:active?"rgba(255,255,255,0.3)":T.border,flexShrink:0}}/>
@@ -2497,7 +2559,7 @@ function LeadScoringTab({data}) {
   return (
     <div style={{display:"grid",gap:16}}>
       {/* Header row — 6 KPIs including Grade D */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
         {[
           {label:"Scored Leads",   val:filtered.length,  sub:"after filters",    color:T.text},
           {label:"Grade A ≥75",    val:buckets.A,        sub:"Top tier",         color:T.green},
@@ -2508,7 +2570,7 @@ function LeadScoringTab({data}) {
         ].map(k=>(
           <Card key={k.label} style={{padding:"14px 16px",position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,${k.color}70,transparent)`}}/>
-            <div style={{fontSize:9,fontWeight:600,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
+            <div style={{fontSize:10,fontWeight:600,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
             <div style={{fontSize:24,fontWeight:800,color:k.color,letterSpacing:-0.5,fontVariantNumeric:"tabular-nums",fontFamily:"'Geist',sans-serif"}}>{k.val}</div>
             <div style={{fontSize:10,color:T.muted,marginTop:3}}>{k.sub}</div>
           </Card>
@@ -2567,7 +2629,7 @@ function LeadScoringTab({data}) {
             <thead>
               <tr style={{background:T.surface2}}>
                 {["#","Name","Score","Cat","Income","Loan","DTI","Employment","Vertical","Email"].map(h=>(
-                  <th key={h} style={{padding:"9px 12px",textAlign:"left",fontSize:9,fontWeight:800,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",borderBottom:`2px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                  <th key={h} style={{padding:"9px 12px",textAlign:"left",fontSize:10,fontWeight:800,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",borderBottom:`2px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -2592,7 +2654,7 @@ function LeadScoringTab({data}) {
                     </td>
                     <td style={{padding:"9px 12px"}}>
                       <span style={{
-                        fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:4,
+                        fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
                         fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5,
                         background:r._cat==="BC"?T.greenBg:`${T.blue}15`,
                         color:r._cat==="BC"?T.green:T.blue,
@@ -2609,7 +2671,7 @@ function LeadScoringTab({data}) {
                       {dtiVal ? (
                         <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
                           <span style={{fontWeight:700,color:dtiColor}}>{dtiVal}%</span>
-                          <span style={{fontSize:9,fontWeight:600,fontFamily:"'IBM Plex Mono',monospace",
+                          <span style={{fontSize:10,fontWeight:600,fontFamily:"'IBM Plex Mono',monospace",
                             color:dtiColor,background:`${dtiColor}18`,border:`1px solid ${dtiColor}35`,
                             borderRadius:3,padding:"1px 4px",letterSpacing:0.4}}>
                             {dtiVal<30?"SOL":dtiVal<35?"ACE":dtiVal<40?"AJU":dtiVal<50?"ALT":"EXC"}
@@ -2640,14 +2702,14 @@ function LeadScoringTab({data}) {
               </span>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={page===0}
-                  style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===0?T.muted:T.text,fontSize:11,cursor:page===0?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
+                  style={{padding:"8px 14px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===0?T.muted:T.text,fontSize:11,cursor:page===0?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
                   ← Prev
                 </button>
-                <span style={{padding:"4px 10px",fontSize:11,color:T.muted,fontFamily:"'IBM Plex Mono',monospace",alignSelf:"center"}}>
+                <span style={{padding:"8px 10px",fontSize:11,color:T.muted,fontFamily:"'IBM Plex Mono',monospace",alignSelf:"center"}}>
                   {page+1} / {totalPages}
                 </span>
                 <button onClick={()=>setPage(p=>Math.min(totalPages-1,p+1))} disabled={page===totalPages-1}
-                  style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===totalPages-1?T.muted:T.text,fontSize:11,cursor:page===totalPages-1?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
+                  style={{padding:"8px 14px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===totalPages-1?T.muted:T.text,fontSize:11,cursor:page===totalPages-1?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
                   Next →
                 </button>
               </div>
@@ -3381,6 +3443,25 @@ function ExportModal({onClose, data}) {
   const inc  = data["Incomplete"]      || [];
   const all  = [...bc, ...fs, ...inc];
 
+  // ── Focus trap ────────────────────────────────────────────────────────────────
+  const modalRef = useRef(null);
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+    const trap = e => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const f = Array.from(el.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])'));
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last?.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first?.focus(); } }
+    };
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, [onClose]);
+
   // ── Filter state ────────────────────────────────────────────────────────────
   const [cats,    setCats]    = useState({ bc:true, fs:true, inc:false });
   const [verticals, setVerts] = useState({ all:true, personal_loans:false, reform:false, mortgage:false, vehicle_unsecured:false, vehicle_secured:false });
@@ -3531,9 +3612,11 @@ function ExportModal({onClose, data}) {
   // ── UI helpers ───────────────────────────────────────────────────────────────
   const Toggle = ({checked, onChange, label, accent=T.blue}) => (
     <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",userSelect:"none"}}>
-      <div onClick={onChange} style={{
+      <input type="checkbox" checked={checked} onChange={onChange} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+      <div style={{
         width:32,height:18,borderRadius:9,background:checked?accent:T.borderHi,
         position:"relative",transition:"background .15s",cursor:"pointer",flexShrink:0,
+        pointerEvents:"none",
       }}>
         <div style={{
           width:14,height:14,borderRadius:"50%",background:"#fff",
@@ -3547,10 +3630,11 @@ function ExportModal({onClose, data}) {
 
   const Checkbox = ({checked, onChange, label, color=T.blue}) => (
     <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",userSelect:"none",padding:"5px 0"}}>
-      <div onClick={onChange} style={{
+      <input type="checkbox" checked={checked} onChange={onChange} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+      <div style={{
         width:16,height:16,borderRadius:4,border:`2px solid ${checked?color:T.border}`,
         background:checked?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",
-        transition:"all .12s",cursor:"pointer",flexShrink:0,
+        transition:"all .12s",flexShrink:0,pointerEvents:"none",
       }}>
         {checked&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
       </div>
@@ -3578,9 +3662,9 @@ function ExportModal({onClose, data}) {
       zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",
       backdropFilter:"blur(8px)",
     }} onClick={onClose}>
-      <div style={{
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Export Leads" className="cc-export-modal" style={{
         background:T.surface,
-        width:780,maxHeight:"90vh",
+        width:780,maxWidth:"95vw",maxHeight:"90vh",
         borderRadius:16,
         boxShadow:"0 40px 100px rgba(10,22,40,0.4)",
         display:"flex",flexDirection:"column",
@@ -3603,7 +3687,7 @@ function ExportModal({onClose, data}) {
               <span style={{color:T.muted,fontWeight:400,marginLeft:6,marginRight:6}}>·</span>
               <span style={{color:T.textSub,fontWeight:600,fontSize:12}}>Export Leads</span>
             </div>
-            <div style={{fontSize:9,color:T.muted,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>
+            <div style={{fontSize:10,color:T.muted,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>
               filter · select fields · download
             </div>
           </div>
@@ -3612,7 +3696,7 @@ function ExportModal({onClose, data}) {
         </div>
 
         {/* ── Body: 2 columns ── */}
-        <div style={{display:"grid",gridTemplateColumns:"260px 1fr",flex:1,overflow:"hidden"}}>
+        <div className="cc-export-body" style={{display:"grid",gridTemplateColumns:"260px 1fr",flex:1,overflow:"hidden"}}>
 
           {/* LEFT — Filters */}
           <div style={{borderRight:`1px solid ${T.border}`,overflowY:"auto",padding:"16px 20px"}}>
@@ -3661,10 +3745,11 @@ function ExportModal({onClose, data}) {
             <SectionHdr>Format</SectionHdr>
             {[["csv","CSV (.csv)"],["tsv","Excel-ready (.tsv)"],["json","JSON (.json)"]].map(([val,lbl])=>(
               <label key={val} style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",padding:"5px 0"}}>
-                <div onClick={()=>setFmt(val)} style={{
+                <input type="radio" name="export-fmt" value={val} checked={fmt===val} onChange={()=>setFmt(val)} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+                <div style={{
                   width:16,height:16,borderRadius:"50%",border:`2px solid ${fmt===val?T.blue:T.border}`,
                   background:"transparent",display:"flex",alignItems:"center",justifyContent:"center",
-                  cursor:"pointer",flexShrink:0,transition:"border-color .12s",
+                  flexShrink:0,transition:"border-color .12s",pointerEvents:"none",
                 }}>
                   {fmt===val && <div style={{width:7,height:7,borderRadius:"50%",background:T.blue}}/>}
                 </div>
@@ -3698,7 +3783,7 @@ function ExportModal({onClose, data}) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {activeFields.map(f=>(
-                      <th key={f.key} style={{padding:"7px 10px",textAlign:"left",color:"rgba(255,255,255,0.7)",fontWeight:700,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>
+                      <th key={f.key} style={{padding:"7px 10px",textAlign:"left",color:T.muted,fontWeight:700,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>
                     ))}
                   </tr>
                 </thead>
@@ -3822,7 +3907,7 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:T.bg,fontFamily:"'DM Sans',sans-serif"}}>
+        <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:T.bg,fontFamily:"'IBM Plex Sans','Geist',sans-serif"}}>
           <div style={{maxWidth:480,padding:40,background:T.surface,borderRadius:16,boxShadow:"0 4px 40px rgba(0,0,0,0.6)",border:`1px solid ${T.border}`,textAlign:"center"}}>
             <div style={{fontSize:40,marginBottom:16}}>⚠️</div>
             <div style={{fontSize:18,fontWeight:800,color:T.text,marginBottom:8}}>Unexpected Error</div>
@@ -3882,6 +3967,8 @@ function fmtAgo(date) {
 function AppInner() {
   // ── Theme ──────────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState(() => {
+    // Sync read needed for useState init; window.storage.get is async so we read the underlying key directly.
+    // The window.storage polyfill wraps localStorage, so this is safe in both environments.
     try { return localStorage.getItem("cc_theme") || "light"; } catch(_) { return "light"; }
   });
 
@@ -4002,7 +4089,7 @@ function AppInner() {
           {/* Logo */}
           <div style={{display:"flex",alignItems:"center",gap:9,flexShrink:0,marginRight:12}}>
             <div style={{width:30,height:30,background:`linear-gradient(135deg,${T.blue},${T.navy})`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 0 1px ${T.blue}30,0 4px 12px ${T.blue}20`}}>
-              <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 18 18" fill="none">
                 <path d="M9 2L14.5 5V13L9 16L3.5 13V5L9 2Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
                 <path d="M6.5 9.5L8 11L11.5 7" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -4016,7 +4103,7 @@ function AppInner() {
           </div>
 
           {/* Tab nav */}
-          <nav style={{display:"flex",gap:0,flex:1,height:"100%",alignItems:"stretch"}}>
+          <nav className="cc-nav" style={{display:"flex",gap:0,flex:1,height:"100%",alignItems:"stretch"}}>
             {MAIN_TABS.map(t=>{
               const active=tab===t.id;
               return (
@@ -4070,6 +4157,7 @@ function AppInner() {
             <button
               className="cc-btn"
               onClick={toggleTheme}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               style={{
                 width:32,height:32,borderRadius:7,border:`1px solid ${T.border}`,
@@ -4078,15 +4166,15 @@ function AppInner() {
                 color:T.muted,flexShrink:0,
               }}>
               {theme === "light"
-                ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                ? <svg aria-hidden="true" width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg aria-hidden="true" width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               }
             </button>
 
             {/* Save indicator */}
             <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",borderRadius:6,opacity:storageReady?1:0.4,transition:"opacity .3s"}} title="Auto-saved">
               <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M8.5 6.5v1.5a.5.5 0 01-.5.5H2a.5.5 0 01-.5-.5V6.5M5 1v5M3 4l2 2 2-2" stroke={storageReady?"#10B981":T.muted} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span style={{fontSize:9,color:storageReady?"#10B981":T.muted,fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5}}>{storageReady?"SAVED":"..."}</span>
+              <span style={{fontSize:10,color:storageReady?"#10B981":T.muted,fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5}}>{storageReady?"SAVED":"..."}</span>
             </div>
 
             {/* Export button */}
@@ -4125,7 +4213,7 @@ function AppInner() {
 
       {/* ── KPI STRIP ── */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",maxWidth:1600,margin:"0 auto"}}>
+        <div className="cc-kpi-strip" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",maxWidth:1600,margin:"0 auto"}}>
           {[
             {label:"Total Leads",    value:total>0?total:"—",           sub:"unique · deduplicated",   color:T.text,  accent:T.blue,   icon:"◈"},
             {label:"Bank Connected", value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`, color:T.green, accent:T.green, icon:"✓"},
@@ -4141,7 +4229,7 @@ function AppInner() {
               <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,${k.accent}60,transparent)`}}/>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div>
-                  <div style={{fontSize:9,fontWeight:600,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
                   <div style={{fontSize:36,fontWeight:800,color:k.color,letterSpacing:-1.5,lineHeight:1,fontVariantNumeric:"tabular-nums",fontFamily:"'Geist',sans-serif"}}>{k.value}</div>
                   <div style={{fontSize:10,color:T.muted,marginTop:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.sub}</div>
                 </div>

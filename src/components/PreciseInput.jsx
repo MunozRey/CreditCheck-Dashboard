@@ -36,7 +36,7 @@ export default function PreciseInput({ value, onChange, prefix, suffix, color, w
           e.target.style.boxShadow = 'none';
         }}
         onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
-        style={{ width, padding: '6px 8px', border: `1.5px solid ${c}22`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: c, textAlign: 'right', outline: 'none', background: `${c}08`, fontFamily: "ui-monospace,'SF Mono',monospace", transition: 'border-color .15s,box-shadow .15s' }}
+        style={{ width, padding: '6px 8px', border: `1.5px solid ${c}22`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: c, textAlign: 'right', outline: 'none', background: `${c}08`, fontFamily: "'IBM Plex Mono','SF Mono',ui-monospace,monospace", transition: 'border-color .15s,box-shadow .15s' }}
       />
       {suffix && <span style={{ fontSize: 12, color: T.muted, fontWeight: 600 }}>{suffix}</span>}
     </div>
