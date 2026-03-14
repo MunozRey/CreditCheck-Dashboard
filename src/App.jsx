@@ -1,0 +1,513 @@
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import UploadZone from './components/UploadZone.jsx';
+import ExportModal from './components/ExportModal.jsx';
+import KeyboardHelp from './components/KeyboardHelp.jsx';
+import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
+import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
+
+import LeadsTab        from './tabs/LeadsTab.jsx';
+import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
+import VerticalsTab    from './tabs/VerticalsTab.jsx';
+import CountriesTab    from './tabs/CountriesTab.jsx';
+import LeadScoringTab  from './tabs/LeadScoringTab.jsx';
+import InsightsTab     from './tabs/InsightsTab.jsx';
+import DataQualityTab  from './tabs/DataQualityTab.jsx';
+import RevenueTab      from './tabs/RevenueTab.jsx';
+import MultiPartnerTab from './tabs/MultiPartnerTab.jsx';
+
+import { processRows }  from './utils/xlsxParser.js';
+import DEFAULT_DATA      from './utils/defaultData.js';
+import fetchLiveData     from './utils/fetchLiveData.js';
+import { newPartner }    from './utils/revenue.js';
+import { fmtAgo }        from './utils/format.js';
+import { scoreLead }     from './utils/scoring.js';
+import { T as THEME_T } from './constants/themes.js';
+
+// Applies settings accent-color overrides onto the mutable T proxy.
+// Must be called AFTER applyThemeBase so it overwrites the theme defaults.
+function patchAccentColors(next) {
+  if (THEME_T.isDark) return; // only override light theme
+  THEME_T.blue      = next.accentBlue  || DEFAULT_SETTINGS.accentBlue;
+  THEME_T.accent    = THEME_T.blue;
+  THEME_T.accentGlow = THEME_T.blue + "1F";
+  THEME_T.navy      = next.accentNavy  || DEFAULT_SETTINGS.accentNavy;
+  THEME_T.green     = next.accentGreen || DEFAULT_SETTINGS.accentGreen;
+  THEME_T.amber     = next.accentAmber || DEFAULT_SETTINGS.accentAmber;
+  THEME_T.red       = next.accentRed   || DEFAULT_SETTINGS.accentRed;
+}
+
+const MAIN_TABS = [
+  { id:"leads",     label:"Leads" },
+  { id:"analytics", label:"Analytics" },
+  { id:"verticals", label:"Verticals" },
+  { id:"countries", label:"Countries" },
+  { id:"scoring",   label:"Lead Scoring" },
+  { id:"insights",  label:"Insights" },
+  { id:"quality",   label:"Data Quality" },
+  { id:"revenue",   label:"Revenue" },
+  { id:"partners",  label:"Partners" },
+];
+
+function AppInner() {
+  const { T, theme, toggleTheme } = useTheme();
+
+  const [data, setData]                       = useState(DEFAULT_DATA);
+  const [tab, setTab]                         = useState("leads");
+  const [showUpload, setUpload]               = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showKeyHelp,     setShowKeyHelp]     = useState(false);
+  const [showSettings,    setShowSettings]    = useState(false);
+
+  // ── Dashboard settings — persisted ────────────────────────────────────────
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  const saveSettings = useCallback((next) => {
+    // Patch T synchronously so the next React render picks up new colors
+    patchAccentColors(next);
+    setSettings(next);
+    try { window.storage.set("cc_settings", JSON.stringify(next)).catch(()=>{}); } catch(_){}
+  }, []);
+
+  // Re-apply overrides whenever the theme toggles (applyTheme resets T to defaults)
+  useEffect(() => { patchAccentColors(settings); }, [theme]); // eslint-disable-line
+
+  // ── Starred leads — persisted by email ───────────────────────────────────
+  const [starredEmails, setStarredEmails] = useState(new Set());
+
+  const toggleStar = useCallback((email) => {
+    if (!email) return;
+    setStarredEmails(prev => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email); else next.add(email);
+      // Persist to storage
+      try { window.storage.set("cc_starred", JSON.stringify([...next])).catch(()=>{}); } catch(_){}
+      return next;
+    });
+  }, []);
+
+  // Load starred from storage on mount (alongside the existing storage init useEffect)
+  // This is handled in the existing storage useEffect below via cc_starred key.
+
+  // ── Global date range filter ──────────────────────────────────────────────
+  const [drFrom, setDrFrom] = useState("");
+  const [drTo,   setDrTo]   = useState("");
+
+  const filteredData = useMemo(() => {
+    if (!drFrom && !drTo) return data;
+    const filter = (arr) => (arr || []).filter(r => {
+      const d = (r.created || "").slice(0, 10);
+      if (drFrom && d < drFrom) return false;
+      if (drTo   && d > drTo)   return false;
+      return true;
+    });
+    return {
+      "Bank Connected":  filter(data["Bank Connected"]),
+      "Form Submitted":  filter(data["Form Submitted"]),
+      "Incomplete":      filter(data["Incomplete"]),
+    };
+  }, [data, drFrom, drTo]);
+
+  // ── Countdown to next auto-refresh ────────────────────────────────────────
+  const [nextRefreshMins, setNextRefreshMins] = useState(60);
+  useEffect(() => {
+    const id = setInterval(() => setNextRefreshMins(m => Math.max(0, m - 1)), 60000);
+    return () => clearInterval(id);
+  }, []);
+  // reset countdown when a fetch completes
+  const resetCountdown = () => setNextRefreshMins(60);
+
+  // ── Live data fetch state ─────────────────────────────────────────────────
+  // liveStatus: null = not yet tried | {ok:true, at:Date} | {ok:false, err:string, isCors:bool}
+  const [liveStatus, setLiveStatus] = useState(null);
+  const [fetching, setFetching]     = useState(false);
+  const userUploadedRef             = useRef(false);
+
+  const runFetch = useCallback(async () => {
+    if (userUploadedRef.current) return;
+    setFetching(true);
+    try {
+      const d = await fetchLiveData(processRows);
+      setData(d);
+      setLiveStatus({ ok:true, at:new Date() });
+      resetCountdown();
+    } catch(err) {
+      setLiveStatus({ ok:false, err:err.message, isCors:!!err.isCors });
+    } finally {
+      setFetching(false);
+    }
+  }, [resetCountdown]);
+
+  useEffect(() => {
+    runFetch();
+    const id = setInterval(runFetch, 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [runFetch]);
+
+  // ── Partner / revenue state — persisted via window.storage ───────────────
+  const [partners, setPartners]             = useState([newPartner("Partner A")]);
+  const [partnerMonthData, setPartnerMonthData] = useState({});
+  const [storageReady, setStorageReady]     = useState(false);
+
+  useEffect(() => {
+    // 3-second fallback: if window.storage hangs, unblock the UI anyway
+    const fallback = setTimeout(() => setStorageReady(true), 3000);
+    (async () => {
+      try {
+        const r1 = await window.storage.get("cc_partners");
+        if (r1?.value) {
+          const parsed = JSON.parse(r1.value);
+          if (Array.isArray(parsed) && parsed.length > 0) setPartners(parsed);
+        }
+      } catch(_) {}
+      try {
+        const r2 = await window.storage.get("cc_month_data");
+        if (r2?.value) {
+          const parsed = JSON.parse(r2.value);
+          if (parsed && typeof parsed === "object") setPartnerMonthData(parsed);
+        }
+      } catch(_) {}
+      try {
+        const r3 = await window.storage.get("cc_starred");
+        if (r3?.value) {
+          const parsed = JSON.parse(r3.value);
+          if (Array.isArray(parsed)) setStarredEmails(new Set(parsed));
+        }
+      } catch(_) {}
+      try {
+        const r4 = await window.storage.get("cc_settings");
+        if (r4?.value) {
+          const parsed = JSON.parse(r4.value);
+          if (parsed && typeof parsed === "object") setSettings(s => ({ ...s, ...parsed }));
+        }
+      } catch(_) {}
+      clearTimeout(fallback);
+      setStorageReady(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.storage.set("cc_partners", JSON.stringify(partners)).catch(() => {});
+  }, [partners, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.storage.set("cc_month_data", JSON.stringify(partnerMonthData)).catch(() => {});
+  }, [partnerMonthData, storageReady]);
+
+  // ── Derived stats (use filteredData for KPI strip) ───────────────────────
+  const bc         = (filteredData["Bank Connected"] || []).length;
+  const fs         = (filteredData["Form Submitted"] || []).length;
+  const incomplete = (filteredData["Incomplete"]     || []).length;
+  const total      = bc + fs + incomplete;
+
+  const allDates = [...(data["Bank Connected"]||[]),...(data["Form Submitted"]||[]),...(data["Incomplete"]||[])]
+    .map(r=>r.created).filter(Boolean).sort();
+  const snapshotDate = allDates.length ? allDates[allDates.length-1] : null;
+
+  const staleDays  = snapshotDate ? Math.floor((new Date()-new Date(snapshotDate))/86400000) : null;
+  const staleHours = snapshotDate ? Math.floor((new Date()-new Date(snapshotDate))/3600000)  : null;
+
+  // Avg lead score across enriched active leads (BC + FS only)
+  const avgScore = useMemo(() => {
+    const active = [...(filteredData["Bank Connected"]||[]), ...(filteredData["Form Submitted"]||[])];
+    const enriched = active.filter(r => r.income != null);
+    if (!enriched.length) return null;
+    return Math.round(enriched.reduce((s, r) => s + scoreLead(r), 0) / enriched.length);
+  }, [filteredData]);
+
+  const onData = useCallback(d => {
+    userUploadedRef.current = true;
+    setData(d);
+    setUpload(false);
+  }, []);
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) { setShowKeyHelp(v => !v); return; }
+      if (e.key === "Escape") { setShowKeyHelp(false); setShowReportModal(false); setUpload(false); return; }
+      if (e.key === "d" || e.key === "D") { toggleTheme(); return; }
+      if (e.key === "u" || e.key === "U") { setUpload(v => !v); return; }
+      if (e.key === "e" || e.key === "E") { setShowReportModal(true); return; }
+      const tabKeys = ["1","2","3","4","5","6","7","8","9"];
+      const idx = tabKeys.indexOf(e.key);
+      if (idx !== -1 && idx < MAIN_TABS.length) setTab(MAIN_TABS[idx].id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleTheme]);
+
+  return (
+    <div key={theme} style={{ fontFamily:"'Geist',sans-serif", background:T.bg, minHeight:"100vh", color:T.text }}>
+
+      {/* ── NAVBAR ── */}
+      <div data-cc="navbar" style={{ background:T.bg, position:"sticky", top:0, zIndex:100, borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ padding:"0 24px", height:54, display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto", width:"100%" }}>
+
+          {/* Logo — official CreditChecker SVG or custom title */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0, marginRight:12 }}>
+            {settings.showOfficialLogo ? (
+              <CreditCheckerLogo height={26} color={T.isDark ? "#fff" : T.navy} />
+            ) : (
+              <>
+                <div style={{ width:30, height:30, background:`linear-gradient(135deg,${T.blue},${T.navy})`, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 0 0 1px ${T.blue}30,0 4px 12px ${T.blue}20`, flexShrink:0 }}>
+                  <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
+                    <path d="M9 2L14.5 5V13L9 16L3.5 13V5L9 2Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+                    <path d="M6.5 9.5L8 11L11.5 7" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700, letterSpacing:-0.2, lineHeight:1, fontFamily:"'Playfair Display', serif", color:T.text }}>{settings.title || "CreditCheck"}</div>
+                  <div style={{ fontSize:8, color:T.muted, fontWeight:500, letterSpacing:1.2, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", marginTop:1 }}>{settings.subtitle || "Lead Intelligence"}</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Tab nav — filtered by settings visibility */}
+          <nav data-cc="tabbar" style={{ display:"flex", gap:0, flex:1, height:"100%", alignItems:"stretch" }}>
+            {MAIN_TABS.filter(t => settings[`tab${t.id.charAt(0).toUpperCase() + t.id.slice(1)}`] !== false).map(t => {
+              const active = tab === t.id;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                  padding:"0 14px", border:"none", background:"none", cursor:"pointer",
+                  fontSize:11, fontWeight:active?600:400, letterSpacing:0.1,
+                  color:active?T.text:T.muted,
+                  borderBottom:`1.5px solid ${active?T.blue:"transparent"}`,
+                  transition:"all .12s", fontFamily:"'Geist',sans-serif", whiteSpace:"nowrap",
+                }}
+                onMouseEnter={e=>{ if(!active) e.currentTarget.style.color=T.textSub; }}
+                onMouseLeave={e=>{ if(!active) e.currentTarget.style.color=T.muted; }}>
+                  {t.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Right controls */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+
+            {/* Live status indicator */}
+            {(() => {
+              const dot = (color) => <div style={{ width:6, height:6, borderRadius:"50%", background:color, boxShadow:`0 0 7px ${color}`, flexShrink:0 }}/>;
+              const wrap = (content) => (
+                <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:6 }}>
+                  {content}
+                  <button className="cc-btn" onClick={runFetch} disabled={fetching} title="Refresh live data" style={{ marginLeft:2, background:"none", border:"none", padding:"0 2px", cursor:fetching?"wait":"pointer", color:T.muted, fontSize:12, lineHeight:1, opacity:fetching?0.5:1 }}>
+                    ↻
+                  </button>
+                </div>
+              );
+              if (fetching && !liveStatus) return wrap(<><div style={{ width:6, height:6, borderRadius:"50%", background:T.muted, animation:"cc-spin .8s linear infinite", flexShrink:0 }}/><span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Connecting…</span></>);
+              if (liveStatus?.ok) {
+                const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
+                const fresh = mins < 30;
+                const color = fresh ? T.green : T.amber;
+                const countdownLabel = nextRefreshMins > 0 ? `${nextRefreshMins}m` : "now";
+                return wrap(<>
+                  {dot(color)}
+                  <span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.2 }}>Live · <span style={{ color }}>{fmtAgo(liveStatus.at)}</span></span>
+                  <span style={{ fontSize:9, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.1, borderLeft:`1px solid ${T.border}`, paddingLeft:5 }} title="Next auto-refresh">↺ {countdownLabel}</span>
+                </>);
+              }
+              if (liveStatus && !liveStatus.ok) {
+                return wrap(<>{dot(T.red)}<span style={{ fontSize:10, color:T.red, fontFamily:"'IBM Plex Mono',monospace" }}>Offline</span></>);
+              }
+              if (snapshotDate) return wrap(<>{dot(staleDays>=3?T.red:staleDays>=1?T.amber:T.green)}<span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.3 }}>{snapshotDate}</span></>);
+              return null;
+            })()}
+
+            {/* Keyboard help */}
+            <button className="cc-btn" onClick={() => setShowKeyHelp(v => !v)} title="Keyboard shortcuts (?)" style={{ width:28, height:28, borderRadius:6, border:`1px solid ${T.border}`, background:showKeyHelp?T.navy:T.surface2, color:showKeyHelp?"#fff":T.muted, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'IBM Plex Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>?</button>
+
+            {/* Theme toggle */}
+            <button
+              className="cc-btn"
+              onClick={toggleTheme}
+              title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              style={{ width:32, height:32, borderRadius:7, border:`1px solid ${T.border}`, background:T.surface2, display:"flex", alignItems:"center", justifyContent:"center", color:T.muted, flexShrink:0, cursor:"pointer" }}>
+              {theme === "light"
+                ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              }
+            </button>
+
+            {/* Save indicator */}
+            <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 8px", borderRadius:6, opacity:storageReady?1:0.4, transition:"opacity .3s" }} title="Auto-saved">
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M8.5 6.5v1.5a.5.5 0 01-.5.5H2a.5.5 0 01-.5-.5V6.5M5 1v5M3 4l2 2 2-2" stroke={storageReady?T.green:T.muted} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span style={{ fontSize:9, color:storageReady?T.green:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5 }}>{storageReady?"SAVED":"..."}</span>
+            </div>
+
+            {/* Settings button */}
+            <button className="cc-btn" onClick={() => setShowSettings(v => !v)} title="Dashboard settings" style={{ width:28, height:28, borderRadius:6, border:`1px solid ${showSettings?T.blue:T.border}`, background:showSettings?`${T.blue}15`:T.surface2, color:showSettings?T.blue:T.muted, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                <path d="M8.325 2.317a1.75 1.75 0 013.35 0 1.75 1.75 0 002.393.98 1.75 1.75 0 012.369 2.369 1.75 1.75 0 00.98 2.393 1.75 1.75 0 010 3.35 1.75 1.75 0 00-.98 2.393 1.75 1.75 0 01-2.369 2.369 1.75 1.75 0 00-2.393.98 1.75 1.75 0 01-3.35 0 1.75 1.75 0 00-2.393-.98 1.75 1.75 0 01-2.369-2.369 1.75 1.75 0 00-.98-2.393 1.75 1.75 0 010-3.35 1.75 1.75 0 00.98-2.393 1.75 1.75 0 012.369-2.369 1.75 1.75 0 002.393-.98z" stroke="currentColor" strokeWidth="1.4"/>
+                <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
+              </svg>
+            </button>
+
+            {/* Export button */}
+            <button className="cc-btn" onClick={() => setShowReportModal(true)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:7, color:T.textSub, fontWeight:500, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1 }}>
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 1v7M3 5.5l3 3 3-3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Export
+            </button>
+
+            {/* Upload button */}
+            <button className="cc-btn" onClick={() => setUpload(v => !v)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:showUpload?T.blue:T.surface2, border:`1px solid ${showUpload?T.blue:T.border}`, borderRadius:7, color:showUpload?"#fff":T.textSub, fontWeight:600, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1, boxShadow:showUpload?"0 0 0 3px rgba(59,130,246,0.15)":"none" }}>
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 9V2M3 4.5L6 1.5l3 3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Upload XLSX
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload panel */}
+      {showUpload && (
+        <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"16px 24px" }}>
+          <UploadZone onData={onData}/>
+        </div>
+      )}
+
+      {/* ── GLOBAL DATE FILTER BAR ── */}
+      {settings.showDateRangeBar !== false && <div data-cc="date-range-bar" style={{ background:T.surface2, borderBottom:`1px solid ${T.border}`, padding:"7px 24px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto" }}>
+          <span style={{ fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", flexShrink:0 }}>Date Range</span>
+          <input type="date" value={drFrom} onChange={e => setDrFrom(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
+          <span style={{ fontSize:11, color:T.muted }}>→</span>
+          <input type="date" value={drTo} onChange={e => setDrTo(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
+          {(drFrom || drTo) && (
+            <>
+              <button onClick={() => { setDrFrom(""); setDrTo(""); }} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.red, fontSize:10, fontWeight:700, cursor:"pointer" }}>✕ Clear</button>
+              <span style={{ fontSize:10, color:T.amber, fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>
+                {(drFrom || drTo) && `${total} leads in range`}
+              </span>
+            </>
+          )}
+          {!drFrom && !drTo && (
+            <span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Showing all dates — select range to filter all tabs</span>
+          )}
+        </div>
+      </div>}
+
+      {/* ── KPI STRIP ── */}
+      <div data-cc="kpi-strip" style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ display:"grid", gridTemplateColumns:`repeat(${[settings.kpiTotal,settings.kpiBC,settings.kpiFS,settings.kpiIncomplete,settings.kpiAvgScore].filter(v=>v!==false).length},1fr)`, maxWidth:1600, margin:"0 auto" }}>
+          {[
+            { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"unique · deduplicated",                                     color:T.text,  accent:T.blue,  icon:"◈" },
+            { key:"kpiBC",         label:"Bank Connected",  value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`,  color:T.green, accent:T.green, icon:"✓" },
+            { key:"kpiFS",         label:"Form Submitted",  value:fs>0?fs:"—",                 sub:"Pending bank connection",                                   color:T.blue,  accent:T.blue,  icon:"◷" },
+            { key:"kpiIncomplete", label:"Incomplete",      value:incomplete>0?incomplete:"—", sub:"Cancelled / dropped off",                                   color:T.amber, accent:T.amber, icon:"◌" },
+            { key:"kpiAvgScore",   label:"Avg Lead Score",  value:avgScore!=null?avgScore:"—", sub:avgScore!=null?"enriched leads · out of 100":"Upload XLSX with income data", color:avgScore!=null?(avgScore>=75?T.green:avgScore>=50?T.blue:avgScore>=30?T.amber:T.red):T.muted, accent:avgScore!=null?(avgScore>=75?T.green:avgScore>=50?T.blue:T.amber):T.muted, icon:"★" },
+          ].filter(k => settings[k.key] !== false).map((k, i, arr) => (
+            <div data-cc="kpi-card" key={k.key} style={{ padding:"20px 24px 18px", borderRight:i<arr.length-1?`1px solid ${T.border}`:"none", position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:0, left:0, right:0, height:"1px", background:`linear-gradient(90deg,${k.accent}60,transparent)` }}/>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div>
+                  <div style={{ fontSize:9, fontWeight:600, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:10, fontFamily:"'IBM Plex Mono',monospace" }}>{k.label}</div>
+                  <div style={{ fontSize:34, fontWeight:800, color:k.color, letterSpacing:-1.5, lineHeight:1, fontVariantNumeric:"tabular-nums", fontFamily:"'Geist',sans-serif" }}>{k.value}</div>
+                  <div style={{ fontSize:10, color:T.muted, marginTop:6, fontFamily:"'IBM Plex Mono',monospace" }}>{k.sub}</div>
+                </div>
+                <div style={{ fontSize:22, color:`${k.accent}40`, fontWeight:300, marginTop:4, fontFamily:"'Geist',sans-serif" }}>{k.icon}</div>
+              </div>
+              {k.key==="kpiBC" && bc>0 && fs>0 && (
+                <div style={{ position:"absolute", bottom:16, right:16, fontSize:10, fontWeight:700, color:T.green, background:T.greenBg, padding:"2px 8px", borderRadius:4, border:`1px solid ${T.green}30`, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5 }}>
+                  {Math.round(bc/(bc+fs)*100)}% BC
+                </div>
+              )}
+              {k.key==="kpiAvgScore" && avgScore!=null && (
+                <div style={{ position:"absolute", bottom:16, right:16, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5,
+                  color:k.color, background:`${k.accent}15`, border:`1px solid ${k.accent}30` }}>
+                  Grade {avgScore>=75?"A":avgScore>=50?"B":avgScore>=30?"C":"D"}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Live / offline / stale banner */}
+      {(() => {
+        if (liveStatus?.ok && !userUploadedRef.current) {
+          const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
+          if (mins < 30) return (
+            <div style={{ padding:"6px 24px", fontSize:11, background:T.greenBg, borderBottom:`1px solid ${T.green}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:12 }}>🟢</span>
+              <strong style={{ color:T.green }}>Live data</strong>
+              <span style={{ color:T.muted }}>— Auto-refreshes every 60 min · Updated {fmtAgo(liveStatus.at)}</span>
+            </div>
+          );
+          return (
+            <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:12 }}>🟡</span>
+              <strong style={{ color:T.amber }}>Live · {fmtAgo(liveStatus.at)}</strong>
+              <span style={{ color:T.muted }}>— Data may be stale · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Refresh now</button></span>
+            </div>
+          );
+        }
+        if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
+          <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+            <span style={{ fontSize:12 }}>⚠️</span>
+            <strong style={{ color:T.amber }}>Auto-fetch unavailable</strong>
+            <span style={{ color:T.muted }}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current && snapshotDate && <>Showing sample data.</>}</span>
+          </div>
+        );
+        if (liveStatus && !liveStatus.ok) return (
+          <div style={{ padding:"6px 24px", fontSize:11, background:T.redBg, borderBottom:`1px solid ${T.red}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+            <span style={{ fontSize:12 }}>🔴</span>
+            <strong style={{ color:T.red }}>Offline · Using cached data</strong>
+            <span style={{ color:T.muted }}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Retry</button></span>
+          </div>
+        );
+        if (userUploadedRef.current && staleHours >= 2) return (
+          <div style={{ padding:"7px 24px", fontSize:11, background:staleDays>=3?T.redBg:staleDays>=1?T.amberBg:T.greenBg, borderBottom:`1px solid ${staleDays>=3?T.red+"30":staleDays>=1?T.amber+"30":T.green+"30"}`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+            <span style={{ fontSize:13 }}>{staleDays>=3?"🔴":staleDays>=1?"🟡":"🟢"}</span>
+            <strong style={{ color:staleDays>=3?T.red:staleDays>=1?T.amber:T.green }}>
+              Snapshot {staleDays>=1?`${staleDays} day${staleDays>1?"s":""}`:`${staleHours}h`} old
+            </strong>
+            <span style={{ color:T.muted }}>— Last record: <strong>{snapshotDate}</strong> · Upload a newer XLSX to include recent leads.</span>
+          </div>
+        );
+        return null;
+      })()}
+
+      {/* Report / Export modal */}
+      {showReportModal && (
+        <ExportModal data={data} onClose={() => setShowReportModal(false)}/>
+      )}
+
+      {/* Keyboard help overlay */}
+      {showKeyHelp && <KeyboardHelp onClose={() => setShowKeyHelp(false)} />}
+
+      {/* Settings panel */}
+      {showSettings && <SettingsPanel settings={settings} onSave={saveSettings} onClose={() => setShowSettings(false)} />}
+
+      {/* ── Tab content ── */}
+      <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
+        {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
+        {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
+        {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
+        {tab==="countries" && <CountriesTab    data={filteredData}/>}
+        {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
+        {tab==="insights"  && <InsightsTab     data={filteredData}/>}
+        {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
+        {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
+        {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <ErrorBoundary>
+        <AppInner />
+      </ErrorBoundary>
+    </ThemeProvider>
+  );
+}

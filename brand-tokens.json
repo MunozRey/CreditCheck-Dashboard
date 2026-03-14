@@ -1,0 +1,126 @@
+{
+  "_meta": {
+    "source": "https://creditchecker.io",
+    "extracted": "2026-03-14",
+    "notes": "Extracted from production CSS + computed styles. Larken is a commercial typeface loaded via self-hosted or CDN — no Google Fonts URL found. IBM Plex Sans is the paired body font."
+  },
+
+  "color": {
+    "primary": {
+      "blue":       "#005EFF",
+      "navy":       "#0A1264",
+      "blueHover":  "#005EFF",
+      "blueOpacity":"rgba(0,94,255,0.1)"
+    },
+    "neutral": {
+      "white":      "#FFFFFF",
+      "bgPage":     "#F0F0F1",
+      "bgSection":  "#E6E7EF",
+      "greyText":   "#444444",
+      "greyMid":    "#374151",
+      "nearBlack":  "#1A1A1A"
+    },
+    "semantic": {
+      "red":        "#EF4444",
+      "amber":      "#F59E0B",
+      "indigo":     "#4338CA",
+      "blue":       "#3B82F6"
+    },
+    "alpha": {
+      "whiteLow":   "hsla(0,0%,100%,0.12)",
+      "whiteMid":   "hsla(0,0%,100%,0.30)",
+      "navyTint":   "rgba(10,18,100,0.10)"
+    }
+  },
+
+  "typography": {
+    "fontDisplay":  "Larken, serif",
+    "fontBody":     "IBM Plex Sans, sans-serif",
+    "fontMono":     "IBM Plex Mono, monospace",
+    "weights": {
+      "normal":   400,
+      "medium":   500,
+      "semibold": 600,
+      "bold":     700
+    },
+    "sizes": {
+      "hero":     "72px",
+      "h1":       "48px",
+      "h2":       "36px",
+      "h3":       "24px",
+      "body":     "16px",
+      "sm":       "14px",
+      "xs":       "13px"
+    },
+    "lineHeight": {
+      "tight":    "110%",
+      "relaxed":  "150%"
+    }
+  },
+
+  "spacing": {
+    "4":  "4px",
+    "8":  "8px",
+    "12": "12px",
+    "16": "16px",
+    "20": "20px",
+    "24": "24px",
+    "32": "32px",
+    "48": "48px"
+  },
+
+  "borderRadius": {
+    "sm":   "4px",
+    "md":   "6px",
+    "lg":   "8px",
+    "pill": "9999px"
+  },
+
+  "shadow": {
+    "card": "0 20px 25px -5px rgba(0,0,0,0.10), 0 10px 10px -5px rgba(0,0,0,0.04), 0 0 0 1px rgba(255,255,255,0.05)"
+  },
+
+  "component": {
+    "buttonPrimary": {
+      "background":    "#005EFF",
+      "color":         "#FFFFFF",
+      "padding":       "14px 32px",
+      "borderRadius":  "6px",
+      "fontWeight":    500,
+      "fontSize":      "16px",
+      "hoverOpacity":  0.9,
+      "transition":    "opacity 0.3s"
+    },
+    "buttonSecondary": {
+      "background":    "transparent",
+      "color":         "#FFFFFF",
+      "border":        "1px solid hsla(0,0%,100%,0.30)",
+      "padding":       "12px 24px",
+      "borderRadius":  "6px",
+      "fontWeight":    500
+    },
+    "inputField": {
+      "background":    "transparent",
+      "color":         "#FFFFFF",
+      "border":        "1px solid hsla(0,0%,100%,0.30)",
+      "focusBorder":   "rgba(255,255,255,0.60)",
+      "transition":    "border-color 0.3s"
+    },
+    "featureCard": {
+      "background":    "#005EFF",
+      "borderRadius":  "8px",
+      "padding":       "48px 24px"
+    },
+    "sectionBgWhite":  "#FFFFFF",
+    "sectionBgLight":  "#F0F0F1",
+    "sectionBgMid":    "#E6E7EF",
+    "sectionBgDark":   "#0A1264",
+    "footerBg":        "#0A1264",
+    "navBg":           "#0A1264"
+  },
+
+  "logo": {
+    "white": "https://creditchecker.io/Logo-white.svg",
+    "note":  "Only a white variant is available on the site. Use on dark/navy backgrounds."
+  }
+}
