@@ -226,13 +226,13 @@ describe("processRows — Pipedrive format", () => {
     expect(result["Form Submitted"]).toHaveLength(0);
   });
 
-  it("leads without email are kept (pushed to category without dedup)", () => {
+  it("leads without email are filtered out (isTestEmail('') returns true)", () => {
     const { headers, rows } = makePipedriveSheet([
       { name: "No Email Lead", email: "", title: "Form Submitted Lead", created: "2026-03-01" },
     ]);
     const result = processRows(rows, headers);
-    // processRows pushes no-email leads directly to res[cat]
-    expect(result["Form Submitted"]).toHaveLength(1);
+    // isTestEmail("") === true, so empty-email rows are skipped
+    expect(result["Form Submitted"]).toHaveLength(0);
   });
 });
 
