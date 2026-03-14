@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import AuthGate from './components/AuthGate.jsx';             // C-01
+import GdprBanner, { ClearDataButton } from './components/GdprBanner.jsx'; // C-03
 import UploadZone from './components/UploadZone.jsx';
 import ExportModal from './components/ExportModal.jsx';
 import KeyboardHelp from './components/KeyboardHelp.jsx';
@@ -21,6 +23,7 @@ import MultiPartnerTab from './tabs/MultiPartnerTab.jsx';
 import { processRows }  from './utils/xlsxParser.js';
 import DEFAULT_DATA      from './utils/defaultData.js';
 import fetchLiveData     from './utils/fetchLiveData.js';
+import { loadGIS, createTokenClient, requestToken, fetchGoogleUserInfo } from './utils/googleAuth.js';
 import { newPartner }    from './utils/revenue.js';
 import { fmtAgo }        from './utils/format.js';
 import { scoreLead }     from './utils/scoring.js';
@@ -118,32 +121,102 @@ function AppInner() {
     return () => clearInterval(id);
   }, []);
   // reset countdown when a fetch completes
-  const resetCountdown = () => setNextRefreshMins(60);
+  const resetCountdown = useCallback(() => setNextRefreshMins(60), []);
+
+  // ── Google OAuth 2.0 state (token in memory only — never persisted) ──────
+  const GOOGLE_CLIENT_ID           = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const [googleToken, setGoogleToken]   = useState(null);
+  const [googleUser,  setGoogleUser]    = useState(null); // { email, name, picture }
+  // Use a ref so runFetch always reads the latest token without stale closures
+  const googleTokenRef             = useRef(null);
+  const tokenClientRef             = useRef(null);
+  const tokenRefreshTimerRef       = useRef(null);
+
+  // Called on successful OAuth grant
+  const handleTokenSuccess = useCallback((response) => {
+    const token     = response.access_token;
+    const expiresIn = Number(response.expires_in) || 3600; // seconds
+
+    googleTokenRef.current = token;
+    setGoogleToken(token);
+
+    // Auto-refresh 5 minutes before expiry
+    clearTimeout(tokenRefreshTimerRef.current);
+    tokenRefreshTimerRef.current = setTimeout(() => {
+      if (tokenClientRef.current) requestToken(tokenClientRef.current, true);
+    }, Math.max(0, (expiresIn - 300) * 1000));
+
+    // Fetch user profile for display (non-critical — ignore errors)
+    fetchGoogleUserInfo(token)
+      .then(info => setGoogleUser({ email: info.email, name: info.name, picture: info.picture }))
+      .catch(() => {});
+
+    // Immediately kick off a data fetch with the new token
+    // (runFetch reads googleTokenRef.current so no stale-closure issue)
+    lastFetchRef.current = 0; // reset rate-limit so this goes through
+    runFetchCore(true, token);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load GIS and create the token client once on mount
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    loadGIS()
+      .then(() => {
+        tokenClientRef.current = createTokenClient(
+          GOOGLE_CLIENT_ID,
+          handleTokenSuccess,
+          (err) => console.warn('[GoogleAuth] Token error:', err),
+        );
+      })
+      .catch(err => console.warn('[GoogleAuth] GIS load failed:', err));
+    return () => clearTimeout(tokenRefreshTimerRef.current);
+  }, [GOOGLE_CLIENT_ID, handleTokenSuccess]);
 
   // ── Live data fetch state ─────────────────────────────────────────────────
-  // liveStatus: null = not yet tried | {ok:true, at:Date} | {ok:false, err:string, isCors:bool}
+  // liveStatus: null = not yet tried | {ok:true, at:Date} | {ok:false, err:string, isCors:bool, isUnauthorized:bool}
   const [liveStatus, setLiveStatus] = useState(null);
   const [fetching, setFetching]     = useState(false);
   const userUploadedRef             = useRef(false);
+  // H-02: Rate limiting — track last fetch timestamp to enforce min interval
+  const lastFetchRef                = useRef(0);
+  const MIN_FETCH_INTERVAL_MS       = 5 * 60 * 1000; // 5 minutes minimum between manual fetches
 
-  const runFetch = useCallback(async () => {
+  // Core fetch logic — accepts an explicit token so handleTokenSuccess can call it
+  // with the freshly-minted token before React state has re-rendered.
+  const runFetchCore = useCallback(async (force, token) => {
     if (userUploadedRef.current) return;
+    if (!force && Date.now() - lastFetchRef.current < MIN_FETCH_INTERVAL_MS) return;
+    lastFetchRef.current = Date.now();
     setFetching(true);
     try {
-      const d = await fetchLiveData(processRows);
+      const d = await fetchLiveData(processRows, token);
       setData(d);
       setLiveStatus({ ok:true, at:new Date() });
       resetCountdown();
     } catch(err) {
-      setLiveStatus({ ok:false, err:err.message, isCors:!!err.isCors });
+      if (err.isUnauthorized && tokenClientRef.current) {
+        // 401 → re-trigger OAuth consent
+        requestToken(tokenClientRef.current);
+      }
+      setLiveStatus({
+        ok:false,
+        err:err.message,
+        isCors:!!err.isCors,
+        isUnauthorized:!!err.isUnauthorized,
+      });
     } finally {
       setFetching(false);
     }
-  }, [resetCountdown]);
+  }, [resetCountdown]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runFetch = useCallback((force = false) => {
+    return runFetchCore(force, googleTokenRef.current);
+  }, [runFetchCore]);
 
   useEffect(() => {
-    runFetch();
-    const id = setInterval(runFetch, 60 * 60 * 1000);
+    // Initial fetch on mount is always allowed (force=true)
+    runFetch(true);
+    const id = setInterval(() => runFetch(true), 60 * 60 * 1000);
     return () => clearInterval(id);
   }, [runFetch]);
 
@@ -318,27 +391,49 @@ function AppInner() {
               const wrap = (content) => (
                 <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:6 }}>
                   {content}
-                  <button className="cc-btn" onClick={runFetch} disabled={fetching} title="Refresh live data" style={{ marginLeft:2, background:"none", border:"none", padding:"0 2px", cursor:fetching?"wait":"pointer", color:T.muted, fontSize:12, lineHeight:1, opacity:fetching?0.5:1 }}>
+                  <button className="cc-btn" onClick={() => runFetch(true)} disabled={fetching} title="Refresh live data" style={{ marginLeft:2, background:"none", border:"none", padding:"0 2px", cursor:fetching?"wait":"pointer", color:T.muted, fontSize:12, lineHeight:1, opacity:fetching?0.5:1 }}>
                     ↻
                   </button>
                 </div>
               );
-              if (fetching && !liveStatus) return wrap(<><div style={{ width:6, height:6, borderRadius:"50%", background:T.muted, animation:"cc-spin .8s linear infinite", flexShrink:0 }}/><span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Connecting…</span></>);
+              // Show Google user avatar + email when authenticated
+              const userBadge = googleUser && (
+                <div title={googleUser.email} style={{ display:"flex", alignItems:"center", gap:4, padding:"2px 8px", background:T.surface3, border:`1px solid ${T.border}`, borderRadius:6 }}>
+                  {googleUser.picture
+                    ? <img src={googleUser.picture} alt="" width={16} height={16} style={{ borderRadius:"50%" }}/>
+                    : <div style={{ width:16, height:16, borderRadius:"50%", background:T.blue, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, color:"#fff", fontWeight:700 }}>{(googleUser.email||"?")[0].toUpperCase()}</div>
+                  }
+                  <span style={{ fontSize:9, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", maxWidth:80, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{googleUser.email}</span>
+                </div>
+              );
+              // "Connect with Google" button — shown when GIS is configured but no token yet
+              const connectBtn = GOOGLE_CLIENT_ID && !googleToken && !fetching && (
+                <button
+                  className="cc-btn"
+                  onClick={() => tokenClientRef.current && requestToken(tokenClientRef.current)}
+                  title="Sign in with Google to load live data"
+                  style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", background:"#fff", border:`1px solid ${T.border}`, borderRadius:6, cursor:"pointer", fontSize:10, fontWeight:600, color:"#444", fontFamily:"'Geist',sans-serif", boxShadow:"0 1px 3px rgba(0,0,0,.1)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  Connect with Google
+                </button>
+              );
+              if (fetching && !liveStatus) return <>{connectBtn || wrap(<><div style={{ width:6, height:6, borderRadius:"50%", background:T.muted, animation:"cc-spin .8s linear infinite", flexShrink:0 }}/><span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Connecting…</span></>)}{userBadge}</>;
               if (liveStatus?.ok) {
                 const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
                 const fresh = mins < 30;
                 const color = fresh ? T.green : T.amber;
                 const countdownLabel = nextRefreshMins > 0 ? `${nextRefreshMins}m` : "now";
-                return wrap(<>
+                return <>{wrap(<>
                   {dot(color)}
                   <span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.2 }}>Live · <span style={{ color }}>{fmtAgo(liveStatus.at)}</span></span>
                   <span style={{ fontSize:9, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.1, borderLeft:`1px solid ${T.border}`, paddingLeft:5 }} title="Next auto-refresh">↺ {countdownLabel}</span>
-                </>);
+                </>)}{userBadge}</>;
               }
               if (liveStatus && !liveStatus.ok) {
-                return wrap(<>{dot(T.red)}<span style={{ fontSize:10, color:T.red, fontFamily:"'IBM Plex Mono',monospace" }}>Offline</span></>);
+                return <>{connectBtn || wrap(<>{dot(liveStatus.isUnauthorized ? T.amber : T.red)}<span style={{ fontSize:10, color:liveStatus.isUnauthorized ? T.amber : T.red, fontFamily:"'IBM Plex Mono',monospace" }}>{liveStatus.isUnauthorized ? "Auth required" : "Offline"}</span></>)}{userBadge}</>;
               }
-              if (snapshotDate) return wrap(<>{dot(staleDays>=3?T.red:staleDays>=1?T.amber:T.green)}<span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.3 }}>{snapshotDate}</span></>);
+              if (connectBtn) return <>{connectBtn}{userBadge}</>;
+              if (snapshotDate) return <>{wrap(<>{dot(staleDays>=3?T.red:staleDays>=1?T.amber:T.green)}<span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.3 }}>{snapshotDate}</span></>)}{userBadge}</>;
               return null;
             })()}
 
@@ -370,6 +465,13 @@ function AppInner() {
                 <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
               </svg>
             </button>
+
+            {/* C-03: GDPR — Clear Data button */}
+            <ClearDataButton T={T} onClearData={() => {
+              const keys = ['cc_partners','cc_month_data','cc_starred','cc_settings'];
+              keys.forEach(k => { try { window.storage?.set(k,'').catch(()=>{}); } catch(_){} });
+              window.location.reload();
+            }} />
 
             {/* Export button */}
             <button className="cc-btn" onClick={() => setShowReportModal(true)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:7, color:T.textSub, fontWeight:500, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1 }}>
@@ -516,6 +618,17 @@ function AppInner() {
             </div>
           );
         }
+        if (liveStatus && !liveStatus.ok && liveStatus.isUnauthorized) return (
+          <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+            <span style={{ fontSize:12 }}>🔐</span>
+            <strong style={{ color:T.amber }}>Google authentication required</strong>
+            <span style={{ color:T.muted }}>—&nbsp;</span>
+            {GOOGLE_CLIENT_ID && tokenClientRef.current
+              ? <button className="cc-btn" onClick={() => requestToken(tokenClientRef.current)} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit", fontWeight:600 }}>Connect with Google</button>
+              : <span style={{ color:T.muted }}>Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in.</span>
+            }
+          </div>
+        );
         if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
           <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
             <span style={{ fontSize:12 }}>⚠️</span>
@@ -541,6 +654,17 @@ function AppInner() {
         );
         return null;
       })()}
+
+      {/* C-03: GDPR consent modal + retention warning */}
+      <GdprBanner
+        T={T}
+        snapshotDate={snapshotDate}
+        onClearData={() => {
+          const keys = ['cc_partners','cc_month_data','cc_starred','cc_settings'];
+          keys.forEach(k => { try { window.storage?.set(k,'').catch(()=>{}); } catch(_){} });
+          window.location.reload();
+        }}
+      />
 
       {/* Report / Export modal */}
       {showReportModal && (
@@ -573,9 +697,12 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ErrorBoundary>
-        <AppInner />
-      </ErrorBoundary>
+      {/* C-01: AuthGate — password prompt if VITE_AUTH_PASSWORD_HASH is set */}
+      <AuthGate>
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      </AuthGate>
     </ThemeProvider>
   );
 }

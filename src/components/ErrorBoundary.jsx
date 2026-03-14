@@ -5,7 +5,19 @@ import { THEMES } from '../constants/themes.js';
 export default class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
-  componentDidCatch(error, info) { console.error('Dashboard error:', error, info); }
+  componentDidCatch(error, _info) {
+    // H-03: Log error ID + sanitised message only.
+    // Never pass error objects or component info to console — they may
+    // contain serialised lead PII, IBANs, income values, or email addresses.
+    const errorId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    const safeMessage = (error?.message || 'unknown error')
+      .replace(/[\w.+-]+@[\w.-]+\.\w+/g, '[email]')      // strip email addresses
+      .replace(/[A-Z]{2}\d{2}[\w\s]{11,30}/g, '[iban]')  // strip IBAN-like strings
+      .replace(/\b\d{4,}\b/g, '[num]');                   // strip long numbers
+    console.error(`[ErrorBoundary] id=${errorId} ${safeMessage}`);
+  }
   render() {
     if (this.state.error) {
       const T = THEMES.light;

@@ -608,8 +608,13 @@ export function makeReport(reportDef, data) {
     </div>
   </div>` : "";
 
+  // M-06: No-cache and no-index meta tags prevent the report from being stored
+  // in browser history, print queues, or indexed by search engines.
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
-<title>CreditCheck — ${reportDef.label} — ${today}</title>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>CreditCheck — ${reportDef.label} — ${today} [CONFIDENTIAL]</title>
 <style>${REPORT_CSS}</style>
 </head><body><div class="page">
   ${intBanner}
