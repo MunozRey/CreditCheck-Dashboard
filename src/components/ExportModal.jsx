@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { VERTICALS_DEF, applyVehicleFilter as filterByVehicle, COUNTRY_META } from '../constants/verticals.js';
+import { scoreLead } from '../utils/scoring.js';
 
 export default function ExportModal({ onClose, data }) {
   const { T } = useTheme();
@@ -15,7 +16,7 @@ export default function ExportModal({ onClose, data }) {
   const [verticals, setVerts]   = useState({ all:true, personal_loans:false, reform:false, mortgage:false, vehicle_unsecured:false, vehicle_secured:false });
   const [countries, setCountries] = useState({});  // {} = all selected
   const [fields,    setFields]  = useState({ name:true, email:true, country:true, language:false, loanAmount:true, loanMonths:false, purpose:true, income:true, expenses:false, employment:true, age:false, category:true });
-  const [fmt, setFmt]           = useState("csv"); // csv | tsv | json
+  const [fmt, setFmt]           = useState("csv"); // csv | tsv | json | pipedrive
 
   const allCountries = [...new Set(all.map(r=>r.country).filter(Boolean))].sort();
 
@@ -82,7 +83,28 @@ export default function ExportModal({ onClose, data }) {
     return r[key] || "";
   };
 
+  // ── Pipedrive CSV builder ─────────────────────────────────────────────────
+  const buildPipedriveContent = () => {
+    const gradeLabel = (r) => {
+      const s = scoreLead(r);
+      return s >= 75 ? "A" : s >= 50 ? "B" : s >= 30 ? "C" : "D";
+    };
+    const quoteCSV = (v) => {
+      const s = String(v == null ? "" : v);
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = "Name,Email,Lead Title,Created";
+    const rows = filtered.map(r => {
+      const grade = gradeLabel(r);
+      const title = `CreditCheck - Grade ${grade}`;
+      const created = (r.created || "").slice(0, 10);
+      return [quoteCSV(r.name || ""), quoteCSV(r.email || ""), quoteCSV(title), quoteCSV(created)].join(",");
+    });
+    return [header, ...rows].join("\n");
+  };
+
   const buildContent = () => {
+    if (fmt === "pipedrive") return buildPipedriveContent();
     if (fmt === "json") {
       const json = filtered.map(r => Object.fromEntries(activeFields.map(f=>[f.label, getVal(r,f.key)])));
       return JSON.stringify(json, null, 2);
@@ -119,7 +141,8 @@ export default function ExportModal({ onClose, data }) {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `creditcheck-leads.${ext}`;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = f === "pipedrive" ? `pipedrive_import_${today}.csv` : `creditcheck-leads.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -274,7 +297,7 @@ export default function ExportModal({ onClose, data }) {
             </>}
 
             <SectionHdr>Format</SectionHdr>
-            {[["csv","CSV (.csv)"],["tsv","Excel-ready (.tsv)"],["json","JSON (.json)"]].map(([val,lbl])=>(
+            {[["csv","CSV (.csv)"],["tsv","Excel-ready (.tsv)"],["json","JSON (.json)"],["pipedrive","Pipedrive CSV"]].map(([val,lbl])=>(
               <label key={val} style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer", padding:"5px 0" }}>
                 <div onClick={()=>setFmt(val)} style={{
                   width:16, height:16, borderRadius:"50%", border:`2px solid ${fmt===val?T.blue:T.border}`,

@@ -8,6 +8,7 @@ import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
 
 import LeadsTab        from './tabs/LeadsTab.jsx';
+import PriorityTab     from './tabs/PriorityTab.jsx';
 import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
 import VerticalsTab    from './tabs/VerticalsTab.jsx';
 import CountriesTab    from './tabs/CountriesTab.jsx';
@@ -40,6 +41,7 @@ function patchAccentColors(next) {
 
 const MAIN_TABS = [
   { id:"leads",     label:"Leads" },
+  { id:"priority",  label:"Priority" },
   { id:"analytics", label:"Analytics" },
   { id:"verticals", label:"Verticals" },
   { id:"countries", label:"Countries" },
@@ -217,6 +219,24 @@ function AppInner() {
     if (!enriched.length) return null;
     return Math.round(enriched.reduce((s, r) => s + scoreLead(r), 0) / enriched.length);
   }, [filteredData]);
+
+  // ── Daily digest stats ────────────────────────────────────────────────────
+  const digestStats = useMemo(() => {
+    const allLeads = [
+      ...(data["Bank Connected"] || []),
+      ...(data["Form Submitted"] || []),
+      ...(data["Incomplete"] || []),
+    ];
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const weekAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+    const todayCount = allLeads.filter(r => (r.created || "").slice(0, 10) === todayStr).length;
+    const yesterdayCount = allLeads.filter(r => (r.created || "").slice(0, 10) === yesterdayStr).length;
+    const weekCount = allLeads.filter(r => (r.created || "").slice(0, 10) >= weekAgoStr).length;
+
+    return { todayCount, yesterdayCount, weekCount, todayStr };
+  }, [data]);
 
   const onData = useCallback(d => {
     userUploadedRef.current = true;
@@ -430,6 +450,53 @@ function AppInner() {
         </div>
       </div>
 
+      {/* ── DAILY DIGEST BANNER ── */}
+      {(digestStats.todayCount > 0 || digestStats.weekCount > 0) && (
+        <div
+          data-cc="daily-digest"
+          onClick={() => {
+            setTab("leads");
+            setDrFrom(digestStats.todayStr);
+            setDrTo(digestStats.todayStr);
+          }}
+          title="Click to filter Leads tab to today"
+          style={{
+            padding: "7px 24px", background: T.surface2, borderBottom: `1px solid ${T.border}`,
+            display: "flex", alignItems: "center", gap: 14, cursor: "pointer",
+            transition: "background .12s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = T.surface3}
+          onMouseLeave={e => e.currentTarget.style.background = T.surface2}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 13 }}>📬</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: T.muted, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: "'IBM Plex Mono',monospace" }}>Daily Digest</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: digestStats.todayCount > 0 ? T.blue : T.muted, fontFamily: "'Geist',sans-serif", letterSpacing: -0.5, lineHeight: 1 }}>{digestStats.todayCount}</span>
+              <span style={{ fontSize: 11, color: T.textSub }}>new leads today</span>
+              {digestStats.todayCount > digestStats.yesterdayCount && digestStats.yesterdayCount >= 0 && digestStats.todayCount > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${T.green}15`, color: T.green, border: `1px solid ${T.green}30`, fontFamily: "'IBM Plex Mono',monospace" }}>
+                  +{digestStats.todayCount - digestStats.yesterdayCount} vs yesterday
+                </span>
+              )}
+              {digestStats.todayCount < digestStats.yesterdayCount && digestStats.yesterdayCount > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${T.amber}15`, color: T.amber, border: `1px solid ${T.amber}30`, fontFamily: "'IBM Plex Mono',monospace" }}>
+                  {digestStats.todayCount - digestStats.yesterdayCount} vs yesterday
+                </span>
+              )}
+            </span>
+            <span style={{ width: 1, height: 16, background: T.border }} />
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: T.text, fontFamily: "'Geist',sans-serif", letterSpacing: -0.5, lineHeight: 1 }}>{digestStats.weekCount}</span>
+              <span style={{ fontSize: 11, color: T.textSub }}>this week</span>
+            </span>
+          </div>
+          <span style={{ fontSize: 10, color: T.muted, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>Click to filter → today</span>
+        </div>
+      )}
+
       {/* Live / offline / stale banner */}
       {(() => {
         if (liveStatus?.ok && !userUploadedRef.current) {
@@ -489,6 +556,7 @@ function AppInner() {
       {/* ── Tab content ── */}
       <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
         {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
+        {tab==="priority"  && <PriorityTab     data={filteredData}/>}
         {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
         {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
         {tab==="countries" && <CountriesTab    data={filteredData}/>}
