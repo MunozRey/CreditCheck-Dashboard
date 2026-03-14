@@ -873,7 +873,7 @@ function AnalyticsTab({data}) {
             </div>
           </div>
         </SectionTitle>
-        {bcOnlyMode&&<div style={{marginBottom:12,padding:"8px 12px",background:T.amberBg,borderRadius:8,fontSize:11,color:T.amber,border:`1px solid ${T.amber}40`}}>⚠️ Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
+        {bcOnlyMode&&<div style={{marginBottom:12,padding:"8px 12px",background:T.amberBg,borderRadius:8,fontSize:11,color:T.amber,border:`1px solid ${T.amber}40`,display:"flex",alignItems:"center",gap:6}}><svg width="13" height="12" viewBox="0 0 14 13" fill="none" style={{flexShrink:0}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg> Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
           {[["7 days",7],["30 days",30],["90 days",90],["12 months",365]].map(([label,days])=>{
             const projBC=Math.round(dailyBCAvg*days);
@@ -1006,7 +1006,7 @@ function RevenueTab({ partners, monthData }) {
 
       {noData ? (
         <Card style={{padding:48,textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          <div style={{marginBottom:12,color:T.muted,lineHeight:0}}><svg width="32" height="28" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
           <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:6}}>No data for {MONTHS[m]} {y}</div>
           <div style={{fontSize:12,color:T.muted}}>Go to the <strong>Partners</strong> tab and enter leads for this month.</div>
         </Card>
@@ -2056,7 +2056,7 @@ function CountriesTab({ data }) {
 // home_improvement: unsecured personal credit up to €50k, reform companies, faster closing
 const VERTICALS_DEF = {
   personal_loans: {
-    id:"personal_loans", label:"Personal Loans", icon:"💳",
+    id:"personal_loans", label:"Personal Loans",
     color:"#005EFF", lightBg:T.surface3, border:"rgba(59,130,246,0.3)",
     purposes:["personal_expenses","other","holiday","education","it_equipment"],
     desc:"Unsecured consumer credit — expenses, lifestyle, education",
@@ -2066,7 +2066,7 @@ const VERTICALS_DEF = {
     stats:{ avgIncome:2017, avgLoan:7511, avgAge:51, bcRate:39 },
   },
   reform: {
-    id:"reform", label:"Home Reform", icon:"🔨",
+    id:"reform", label:"Home Reform",
     color:"#00A651", lightBg:"#EDFAF3", border:"rgba(16,185,129,0.3)",
     purposes:["home_improvement"],
     desc:"Home reform & improvement — unsecured credit, no property appraisal",
@@ -2077,7 +2077,7 @@ const VERTICALS_DEF = {
     insightNote:"83% of reform leads request <€15k — typical unsecured personal credit range. Only 13 leads request >€15k where secured products might apply.",
   },
   mortgage: {
-    id:"mortgage", label:"Mortgage / Refinance", icon:"🏦",
+    id:"mortgage", label:"Mortgage / Refinance",
     color:"#6D28D9", lightBg:T.surface3, border:"rgba(139,92,246,0.3)",
     purposes:["refinance"],
     desc:"Mortgage refinancing — tied to property valuation, regulated product",
@@ -2086,10 +2086,10 @@ const VERTICALS_DEF = {
     modelNote:"CPL €20–50 or fixed fee per qualified lead · regulated by LCCI · longer sales cycle",
     stats:{ avgIncome:2009, avgLoan:14893, avgAge:52, bcRate:25, homeowners:39 },
     insightNote:"25% BC rate is lower — expected for mortgage (higher intent bar). 82% have existing loans (refinance intent confirmed). Needs LCCI compliance from partner.",
-    regulatory:"⚖️ LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
+    regulatory:"LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
   },
   vehicle_unsecured: {
-    id:"vehicle_unsecured", label:"Vehicle — Personal Credit", icon:"🚗",
+    id:"vehicle_unsecured", label:"Vehicle — Personal Credit",
     color:"#F59E0B", lightBg:T.amberBg, border:"rgba(245,158,11,0.4)",
     purposes:["vehicle"],
     // Filter applied in UI: loan ≤ €15k AND months ≤ 60
@@ -2102,7 +2102,7 @@ const VERTICALS_DEF = {
     stats:{ avgIncome:1952, avgLoan:4500, avgAge:48, bcRate:30 },
   },
   vehicle_secured: {
-    id:"vehicle_secured", label:"Vehicle — Secured Credit", icon:"🔐",
+    id:"vehicle_secured", label:"Vehicle — Secured Credit",
     color:"#DC2626", lightBg:T.redBg, border:"rgba(239,68,68,0.3)",
     purposes:["vehicle"],
     // Filter applied in UI: loan > €15k OR months > 60
@@ -2115,6 +2115,45 @@ const VERTICALS_DEF = {
     regulatory:"Vehicle registration as collateral requires notarial process (reserva de dominio or prenda sin desplazamiento). Partner must have this capability.",
     stats:{ avgIncome:2200, avgLoan:22000, avgAge:47, bcRate:17 },
   },
+};
+
+// ─── VERTICAL SVG ICONS ────────────────────────────────────────────────────────
+const VERTICAL_ICONS = {
+  personal_loans: (sz=20) => (
+    <svg width={sz} height={Math.round(sz*0.78)} viewBox="0 0 18 14" fill="none">
+      <rect x="1" y="1" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <line x1="1" y1="5" x2="17" y2="5" stroke="currentColor" strokeWidth="1.5"/>
+      <line x1="3" y1="9" x2="7" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  reform: (sz=20) => (
+    <svg width={sz} height={sz} viewBox="0 0 18 18" fill="none">
+      <path d="M2 8L9 2l7 6v8a1 1 0 01-1 1H3a1 1 0 01-1-1V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M6 17V9h6v8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  ),
+  mortgage: (sz=20) => (
+    <svg width={Math.round(sz*0.89)} height={sz} viewBox="0 0 16 18" fill="none">
+      <rect x="1" y="6" width="14" height="11" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M0.5 7L8 2l7.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="5.5" y="11" width="5" height="6" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  vehicle_unsecured: (sz=20) => (
+    <svg width={sz} height={Math.round(sz*0.7)} viewBox="0 0 20 14" fill="none">
+      <path d="M4 7.5l2-5h8l2 5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="1" y="7.5" width="18" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <circle cx="15" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  vehicle_secured: (sz=20) => (
+    <svg width={Math.round(sz*0.78)} height={sz} viewBox="0 0 14 18" fill="none">
+      <rect x="2" y="8" width="10" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M4 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="7" cy="13" r="1.5" fill="currentColor"/>
+    </svg>
+  ),
 };
 
 // ─── VERTICALS TAB ─────────────────────────────────────────────────────────────
@@ -2182,7 +2221,7 @@ function VerticalsTab({data}) {
               border:`2px solid ${active?v.color:T.border}`,
               transition:"all .15s",boxShadow:active?"0 4px 16px rgba(0,0,0,0.15)":"none",
             }}>
-              <div style={{fontSize:20,marginBottom:7}}>{v.icon}</div>
+              <div style={{marginBottom:7,color:active?"#fff":v.color,lineHeight:0}}>{VERTICAL_ICONS[v.id]?.(20)}</div>
               <div style={{fontSize:13,fontWeight:900,color:active?"#fff":T.text,letterSpacing:-0.2}}>{v.label}</div>
               <div style={{fontSize:10,color:active?"rgba(255,255,255,0.6)":T.muted,margin:"3px 0 10px",lineHeight:1.4}}>{v.desc}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -2207,7 +2246,7 @@ function VerticalsTab({data}) {
           borderRadius:8, fontSize:11,
           color: V.vehicleFilter==="secured" ? "#9F1239" : "#78350F",
         }}>
-          <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+          <svg width="16" height="14" viewBox="0 0 14 13" fill="none" style={{flexShrink:0}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
           <div style={{lineHeight:1.6}}>
             <strong>Heuristic segmentation — no explicit field in source data.</strong>{" "}
             {V.vehicleFilter==="unsecured"
@@ -2219,7 +2258,7 @@ function VerticalsTab({data}) {
 
       {vLeads.length===0 ? (
         <Card style={{padding:48,textAlign:"center"}}>
-          <div style={{fontSize:36,marginBottom:12}}>{V.icon}</div>
+          <div style={{marginBottom:12,color:V.color,lineHeight:0,display:"inline-block"}}>{VERTICAL_ICONS[V.id]?.(36)}</div>
           <div style={{fontSize:15,fontWeight:700,color:T.text}}>No leads in this vertical</div>
           <div style={{fontSize:12,color:T.muted,marginTop:6}}>Upload a XLSX with loan purpose data</div>
         </Card>
@@ -2266,6 +2305,54 @@ function VerticalsTab({data}) {
             </Card>
           )}
 
+          {/* Vertical Insights */}
+          {(()=>{
+            const vertStats = Object.values(VERTICALS_DEF).map(v=>{
+              const base = all.filter(r=>v.purposes.includes(r.purpose));
+              const baseBC = bc.filter(r=>v.purposes.includes(r.purpose));
+              const vl = applyVehicleFilter(base, v.vehicleFilter);
+              const vb = applyVehicleFilter(baseBC, v.vehicleFilter);
+              const rate = vl.length>0 ? Math.round(vb.length/vl.length*100) : 0;
+              return {v, count:vl.length, bcCount:vb.length, rate};
+            }).filter(s=>s.count>0);
+            if (vertStats.length===0) return null;
+            const maxCount = Math.max(...vertStats.map(s=>s.count));
+            const bestBC  = [...vertStats].sort((a,b)=>b.rate-a.rate)[0];
+            const bestVol = [...vertStats].sort((a,b)=>b.count-a.count)[0];
+            return (
+              <Card style={{padding:20}}>
+                <SectionTitle>Vertical Insights</SectionTitle>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                  <div style={{padding:"10px 12px",background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.green}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Best BC Rate</div>
+                    <div style={{fontSize:18,fontWeight:900,color:T.green}}>{bestBC.rate}%</div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:1}}>{bestBC.v.label}</div>
+                  </div>
+                  <div style={{padding:"10px 12px",background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.blue}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Highest Volume</div>
+                    <div style={{fontSize:18,fontWeight:900,color:T.blue}}>{bestVol.count}</div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:1}}>{bestVol.v.label}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Leads by Vertical</div>
+                {vertStats.map(({v,count,bcCount,rate})=>(
+                  <div key={v.id} style={{marginBottom:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:11,color:T.text,fontWeight:600}}>{v.label}</span>
+                      <span style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>
+                        <span style={{fontWeight:700,color:v.color}}>{count}</span>
+                        <span style={{color:T.muted}}> · </span>
+                        <span style={{fontWeight:700,color:T.green}}>{rate}% BC</span>
+                      </span>
+                    </div>
+                    <div style={{height:5,background:T.surface2,borderRadius:3}}>
+                      <div style={{height:"100%",width:`${maxCount>0?Math.round(count/maxCount*100):0}%`,background:v.color,borderRadius:3,transition:"width .4s"}}/>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            );
+          })()}
 
         </div>
 
@@ -2405,12 +2492,12 @@ function ScoreBar({score}) {
 // Employment options for filter
 const EMP_OPTIONS = [
   {value:"all",           label:"All Employment"},
-  {value:"civil_servant", label:"🏛 Civil Servant"},
-  {value:"employed",      label:"💼 Employed"},
-  {value:"self_employed", label:"🧑‍💻 Self-Employed"},
-  {value:"retired",       label:"🧓 Retired"},
-  {value:"part_time",     label:"⏱ Part-Time"},
-  {value:"unemployed",    label:"⚠️ Unemployed"},
+  {value:"civil_servant", label:"Civil Servant"},
+  {value:"employed",      label:"Employed"},
+  {value:"self_employed", label:"Self-Employed"},
+  {value:"retired",       label:"Retired"},
+  {value:"part_time",     label:"Part-Time"},
+  {value:"unemployed",    label:"Unemployed"},
 ];
 
 function LeadScoringTab({data}) {
@@ -2488,7 +2575,7 @@ function LeadScoringTab({data}) {
 
   if (!isEnriched) return (
     <Card style={{padding:48,textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:12}}>📊</div>
+      <div style={{marginBottom:12,color:T.muted,lineHeight:0}}><svg width="36" height="32" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
       <div style={{fontSize:15,fontWeight:700,color:T.text}}>Lead Scoring requires enriched data</div>
       <div style={{fontSize:12,color:T.muted,marginTop:6}}>Upload a CreditCheck XLSX (Rasmus format) with income, DTI and employment data</div>
     </Card>
@@ -2522,7 +2609,7 @@ function LeadScoringTab({data}) {
 
           <select value={vertical} onChange={e=>setVertical(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif",outline:"none"}}>
             <option value="all">All Verticals</option>
-            {Object.values(VERTICALS_DEF).map(v=><option key={v.id} value={v.id}>{v.icon} {v.label}</option>)}
+            {Object.values(VERTICALS_DEF).map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
 
           <select value={empFilter} onChange={e=>setEmpFilter(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif",outline:"none"}}>
@@ -2621,7 +2708,7 @@ function LeadScoringTab({data}) {
                       {(r.employment||"—").replace(/_/g," ")}
                     </td>
                     <td style={{padding:"9px 12px"}}>
-                      {purp?<span style={{fontSize:10,fontWeight:600,color:purp.color,background:`${purp.color}10`,padding:"2px 8px",borderRadius:20,border:`1px solid ${purp.color}30`}}>{purp.icon} {purp.label}</span>:<span style={{color:T.muted,fontSize:11}}>—</span>}
+                      {purp?<span style={{fontSize:10,fontWeight:600,color:purp.color,background:`${purp.color}10`,padding:"2px 8px",borderRadius:20,border:`1px solid ${purp.color}30`}}>{purp.label}</span>:<span style={{color:T.muted,fontSize:11}}>—</span>}
                     </td>
                     <td style={{padding:"9px 12px"}}>
                       {r.emailVerified
@@ -2692,7 +2779,7 @@ const REPORT_DEFS = [
   {
     id:"ops_full",
     category:"internal",
-    icon:"🔒",
+    icon:"",
     label:"Operations Report",
     audience:"Management & Ops team",
     desc:"Full pipeline view: quality score, domain breakdown, DTI analysis, email health, funnel with drop-off, financial profile. Confidential.",
@@ -2702,7 +2789,7 @@ const REPORT_DEFS = [
   {
     id:"exec_summary",
     category:"internal",
-    icon:"📊",
+    icon:"",
     label:"Executive Summary",
     audience:"C-Level · Board · Investors",
     desc:"High-level board-ready summary: batch performance vs. previous period, revenue model projection, top verticals, quality rating and strategic recommendations.",
@@ -2712,7 +2799,7 @@ const REPORT_DEFS = [
   {
     id:"risk_screening",
     category:"internal",
-    icon:"⚠️",
+    icon:"",
     label:"Risk Screening Report",
     audience:"Risk & Compliance team",
     desc:"High-risk lead identification: DTI >50%, single-name leads, unverified emails, inconsistent financial data. Flag before sending to regulated partners.",
@@ -2724,7 +2811,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_personal",
     category:"vertical",
-    icon:"💳",
+    icon:"",
     label:"Personal Loans Batch",
     audience:"Consumer finance · BNPL · Neobanks",
     desc:"Personal expenses, lifestyle, education and general consumer credit leads. Employment mix, income profile, DTI and top purposes filtered to this vertical.",
@@ -2735,7 +2822,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_reform",
     category:"vertical",
-    icon:"🔨",
+    icon:"",
     label:"Home Reform Batch",
     audience:"Reform financing · Home improvement lenders · Consumer banks",
     desc:"Home improvement leads. Unsecured personal credit — no appraisal needed. 83% request <€15k. 42% homeowners. Faster closing than mortgage. Different product entirely.",
@@ -2746,7 +2833,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_mortgage",
     category:"vertical",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage / Refinance Batch",
     audience:"Mortgage brokers · Banks · Intermediarios hipotecarios",
     desc:"Refinancing leads. Secured product tied to property valuation. 82% have existing loans — confirmed refinance intent. Avg term 67 months. LCCI regulated.",
@@ -2757,7 +2844,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_vehicle_unsecured",
     category:"vertical",
-    icon:"🚗",
+    icon:"",
     label:"Vehicle — Personal Credit Batch",
     audience:"Consumer finance · Cetelem · Cofidis · Bank personal loan desks",
     desc:"Vehicle purchase leads financed via unsecured personal credit (loan ≤€15k, term ≤60 months). Vehicle is the destination — underwriting is on income/DTI, not vehicle value. ~14 leads.",
@@ -2768,7 +2855,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_vehicle_secured",
     category:"vertical",
-    icon:"🔐",
+    icon:"",
     label:"Vehicle — Secured Credit Batch",
     audience:"ALD Automotive · Arval · Specialized auto lenders · Dealers with secured financing",
     desc:"Vehicle-secured credit leads (loan >€15k or term >60 months). Vehicle is the collateral — partner must handle valuation (ITV/tasación) and registration (reserva de dominio). ~6 leads.",
@@ -2780,7 +2867,7 @@ const REPORT_DEFS = [
   {
     id:"partner_mortgage",
     category:"partner",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage Partner Pack",
     audience:"Banks · Mortgage brokers · Hipotecas.com · iAhorro",
     desc:"Curated for mortgage brokers and banks. Refinancing leads with confirmed intent (82% existing loans), homeowner profile, avg loan €14.9k, LCCI compliance context. No internal data.",
@@ -2791,7 +2878,7 @@ const REPORT_DEFS = [
   {
     id:"partner_auto",
     category:"partner",
-    icon:"🔑",
+    icon:"",
     label:"Auto Secured Credit — Partner Pack",
     audience:"ALD · Arval · LeasePlan · Specialized auto lenders",
     desc:"Vehicle-secured credit leads only (loan >€15k or term >60 months). Includes income, employment and loan profile. Clean external format — no internal ops data.",
@@ -2802,7 +2889,7 @@ const REPORT_DEFS = [
   {
     id:"partner_neobank",
     category:"partner",
-    icon:"📱",
+    icon:"",
     label:"Neobank / BNPL Pack",
     audience:"Revolut · Cofidis · Vivus · WiZink",
     desc:"Personal loans vertical optimized for neobank and BNPL partners. Focus on digital-first profile, younger segment, income <€2k — high-volume plays.",
@@ -2814,7 +2901,7 @@ const REPORT_DEFS = [
   {
     id:"premium_bc",
     category:"premium",
-    icon:"⭐",
+    icon:"",
     label:"Premium BC Segment",
     audience:"Tier-1 partners · Fintonic · Banks · Comparators",
     desc:"Bank Connected only, income >€2,000 and loan >€5,000. Highest conversion potential in the batch. Avg income €2.7k · Avg loan €15k.",
@@ -2825,7 +2912,7 @@ const REPORT_DEFS = [
   {
     id:"retired_segment",
     category:"premium",
-    icon:"🧓",
+    icon:"",
     label:"Retired Segment",
     audience:"Consumer finance · Pension credit specialists",
     desc:"Retired profile leads. Stable pension income, avg €2,051/mo. Low DTI risk. Specific partner type: personal credit with pension collateral.",
@@ -2837,7 +2924,7 @@ const REPORT_DEFS = [
   {
     id:"generic_partner",
     category:"external",
-    icon:"🤝",
+    icon:"",
     label:"Generic Partner Overview",
     audience:"Any new or prospective partner",
     desc:"Clean external overview: volume, quality badge, loan purposes and financial profile. Zero internal ops data. Safe to share with any external party.",
@@ -3072,7 +3159,7 @@ function makeHeader(reportLabel, dateFrom, dateTo, today, badgeHTML="") {
 }
 
 function makePrintBtn() {
-  return `<div class="no-print"><button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button></div>`;
+  return `<div class="no-print"><button class="btn-print" onclick="window.print()">Print / Save as PDF</button></div>`;
 }
 
 function makeKPIGrid(items) {
@@ -3123,15 +3210,15 @@ function makeReport(reportDef, data) {
   const isRisk      = reportDef.id === "risk_screening";
   const isExec      = reportDef.id === "exec_summary";
 
-  const badgeHTML = isInternal ? `<span class="badge badge-int">🔒 Internal</span>` :
-                    isPremium  ? `<span class="badge badge-prem">⭐ Premium</span>` :
-                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">⚠️ Risk &amp; Compliance</span>` :
+  const badgeHTML = isInternal ? `<span class="badge badge-int">Internal</span>` :
+                    isPremium  ? `<span class="badge badge-prem">Premium</span>` :
+                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">Risk &amp; Compliance</span>` :
                                  `<span class="badge badge-ext">Partner Distribution</span>`;
 
   const intBanner = isRisk
-    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;">⚠️ <strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
+    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;"><strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
     : isInternal
-    ? `<div class="int-banner">🔒 <strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
+    ? `<div class="int-banner"><strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
     : "";
 
   // KPI grid selection
@@ -3330,7 +3417,7 @@ function makeReport(reportDef, data) {
   ${dtiSection}
   ${opts.vertical==="mortgage" ? `
   <div class="section">
-    <div class="section-title">⚖️ Regulatory Context</div>
+    <div class="section-title">Regulatory Context</div>
     <div style="background:#FEF9EC;border:1px solid #FDE68A;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#92400E;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Regulatory framework</div>
@@ -3344,7 +3431,7 @@ function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_secured" ? `
   <div class="section">
-    <div class="section-title">⚠️ Product & Heuristic Note</div>
+    <div class="section-title">Product & Heuristic Note</div>
     <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#9F1239;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Segmentation method</div>
@@ -3356,7 +3443,7 @@ function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_unsecured" ? `
   <div class="section">
-    <div class="section-title">ℹ️ Product Classification Note</div>
+    <div class="section-title">Product Classification Note</div>
     <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:14px 20px;font-size:12px;color:#78350F;line-height:1.7;">
       <strong>Segmentation based on heuristic — no explicit field in source data.</strong>
       Leads classified as unsecured personal credit (loan ≤€15k AND term ≤60 months).
@@ -3367,7 +3454,7 @@ function makeReport(reportDef, data) {
   ${isInternal||isVertical||isSegment||isPartner||isPremium ? `<div class="section"><div class="two-col">${domainSection}${residSection}</div></div>` : ""}
   <div class="footer">
     <span>CreditCheck by Clovr Labs · ${today}</span>
-    <span>${isInternal||isRisk?"🔒 Internal — Confidential":isPremium?"⭐ Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
+    <span>${isInternal||isRisk?"Internal — Confidential":isPremium?"Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
   </div>
 </div></body></html>`;
 
@@ -3563,12 +3650,12 @@ function ExportModal({onClose, data}) {
   );
 
   const VERT_LABELS = {
-    personal_loans:"💳 Personal Loans", reform:"🔨 Home Reform",
-    mortgage:"🏦 Mortgage / Refinance", vehicle_unsecured:"🚗 Vehicle Personal Credit", vehicle_secured:"🔐 Vehicle Secured",
+    personal_loans:"Personal Loans", reform:"Home Reform",
+    mortgage:"Mortgage / Refinance", vehicle_unsecured:"Vehicle Personal Credit", vehicle_secured:"Vehicle Secured",
   };
   const COUNTRY_META_LOCAL = {
-    es:"🇪🇸 Spain", en:"🌍 English-speaking", pt:"🇵🇹 Portugal",
-    it:"🇮🇹 Italy", fr:"🇫🇷 France", de:"🇩🇪 Germany", nl:"🇳🇱 Netherlands", pl:"🇵🇱 Poland",
+    es:"Spain", en:"English-speaking", pt:"Portugal",
+    it:"Italy", fr:"France", de:"Germany", nl:"Netherlands", pl:"Poland",
   };
 
   return (
@@ -3618,9 +3705,9 @@ function ExportModal({onClose, data}) {
           <div style={{borderRight:`1px solid ${T.border}`,overflowY:"auto",padding:"16px 20px"}}>
 
             <SectionHdr>Category</SectionHdr>
-            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="🟦 Bank Connected"  color={T.blue}/>
-            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="🟨 Form Submitted"  color="#F59E0B"/>
-            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="⬜ Incomplete"       color={T.muted}/>
+            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="Bank Connected"  color={T.blue}/>
+            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="Form Submitted"  color="#F59E0B"/>
+            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="Incomplete"      color={T.muted}/>
 
             <SectionHdr>Vertical</SectionHdr>
             <Checkbox
@@ -3790,7 +3877,7 @@ function ExportModal({onClose, data}) {
             {/* Actions */}
             <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",alignSelf:"center",flex:1}}>
-                💡 Click the text to select all, then Ctrl+C / Cmd+C
+                Click the text to select all, then Ctrl+C / Cmd+C
               </div>
               <button onClick={()=>setShowCopy(false)} style={{padding:"9px 18px",borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"transparent",color:"rgba(255,255,255,0.5)",fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"'Geist',sans-serif"}}>
                 Close
@@ -3824,7 +3911,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:T.bg,fontFamily:"'DM Sans',sans-serif"}}>
           <div style={{maxWidth:480,padding:40,background:T.surface,borderRadius:16,boxShadow:"0 4px 40px rgba(0,0,0,0.6)",border:`1px solid ${T.border}`,textAlign:"center"}}>
-            <div style={{fontSize:40,marginBottom:16}}>⚠️</div>
+            <div style={{marginBottom:16,color:T.amber,lineHeight:0}}><svg width="40" height="36" viewBox="0 0 14 13" fill="none"><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg></div>
             <div style={{fontSize:18,fontWeight:800,color:T.text,marginBottom:8}}>Unexpected Error</div>
             <div style={{fontSize:13,color:T.muted,marginBottom:24,lineHeight:1.6}}>{this.state.error.message || "An error occurred. Reload the page and try again."}</div>
             <button onClick={()=>this.setState({error:null})} style={{padding:"10px 24px",background:T.blue,color:"#fff",border:"none",borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'IBM Plex Sans','Geist',sans-serif"}}>
@@ -4190,7 +4277,7 @@ function AppInner() {
         // 2. CORS / network blocked — show actionable warning
         if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
           <div style={{padding:"6px 24px",fontSize:11,background:T.amberBg,borderBottom:`1px solid ${T.amber}30`,display:"flex",alignItems:"center",gap:8,fontFamily:"'IBM Plex Mono',monospace"}}>
-            <span style={{fontSize:12}}>⚠️</span>
+            <svg width="12" height="11" viewBox="0 0 14 13" fill="none" style={{flexShrink:0,color:T.amber}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
             <strong style={{color:T.amber}}>Auto-fetch unavailable</strong>
             <span style={{color:T.muted}}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current&&snapshotDate&&<>Showing sample data.</>}</span>
           </div>
@@ -4198,7 +4285,7 @@ function AppInner() {
         // 3. Other API error
         if (liveStatus && !liveStatus.ok) return (
           <div style={{padding:"6px 24px",fontSize:11,background:T.redBg,borderBottom:`1px solid ${T.red}30`,display:"flex",alignItems:"center",gap:8,fontFamily:"'IBM Plex Mono',monospace"}}>
-            <span style={{fontSize:12}}>🔴</span>
+            <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:T.red,flexShrink:0}}/>
             <strong style={{color:T.red}}>Offline · Using cached data</strong>
             <span style={{color:T.muted}}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{background:"none",border:"none",padding:0,color:T.blue,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Retry</button></span>
           </div>

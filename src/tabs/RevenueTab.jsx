@@ -102,7 +102,14 @@ export default function RevenueTab({ partners, monthData }) {
 
       {noData ? (
         <Card style={{ padding: 48, textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center", color: T.muted }}>
+            <svg width="36" height="36" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="10" width="3" height="8" rx="1" fill="currentColor" opacity=".4"/>
+              <rect x="7" y="6" width="3" height="12" rx="1" fill="currentColor" opacity=".7"/>
+              <rect x="12" y="3" width="3" height="15" rx="1" fill="currentColor"/>
+              <rect x="17" y="8" width="3" height="10" rx="1" fill="currentColor" opacity=".55"/>
+            </svg>
+          </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Playfair Display', serif" }}>No data for {MONTHS[m]} {y}</div>
           <div style={{ fontSize: 12, color: T.muted }}>Go to the <strong>Partners</strong> tab and enter leads for this month.</div>
         </Card>
