@@ -285,7 +285,9 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>{starOnly ? "No starred leads in this category" : "No results"}</td></tr>
+                  <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>
+                    {starOnly ? "No starred leads in this category" : hasFilters ? "No leads match the current filters — try clearing some filters" : `No leads in ${cat}`}
+                  </td></tr>
                 )}
               </tbody>
             </table>

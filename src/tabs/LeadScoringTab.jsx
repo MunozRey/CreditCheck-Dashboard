@@ -62,8 +62,8 @@ export default function LeadScoringTab({ data }) {
     else if (sortBy === "income") rows = [...rows].sort((a, b) => (b.income || 0) - (a.income || 0));
     else if (sortBy === "loan")   rows = [...rows].sort((a, b) => (b.loanAmount || 0) - (a.loanAmount || 0));
     else if (sortBy === "dti")    rows = [...rows].sort((a, b) => {
-      const da = a.income > 0 ? a.expenses / a.income : 99;
-      const db = b.income > 0 ? b.expenses / b.income : 99;
+      const da = (a.income != null && parseFloat(a.income) > 0) ? parseFloat(a.expenses) / parseFloat(a.income) : 99;
+      const db = (b.income != null && parseFloat(b.income) > 0) ? parseFloat(b.expenses) / parseFloat(b.income) : 99;
       return da - db;
     });
     else if (sortBy === "name") rows = [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
