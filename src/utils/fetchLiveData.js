@@ -24,11 +24,15 @@ if (!LIVE_ENDPOINT && import.meta.env.PROD) {
 
 /**
  * Fetches the live XLSX export and returns parsed lead data.
- * @param {Function} processRows - The processRows(rows, headers) parser function.
+ * @param {Function} processRows  - The processRows(rows, headers) parser function.
+ * @param {string|null} [accessToken] - Optional Google OAuth 2.0 access token.
+ *   When provided, takes precedence over the VITE_API_TOKEN env var.
+ *   Pass null/undefined to fall back to the static env token.
  * @returns {Promise<Object>} Parsed data with Bank Connected / Form Submitted / Incomplete keys.
- * @throws {Error} If fetch fails (CORS, network, HTTP error) or file is empty.
+ * @throws {Error} If fetch fails (CORS, network, HTTP error, auth) or file is empty.
+ *   401 errors additionally set err.isUnauthorized = true so callers can re-trigger OAuth.
  */
-async function fetchLiveData(processRows) {
+async function fetchLiveData(processRows, accessToken = null) {
   if (!LIVE_ENDPOINT) {
     throw new Error('Live endpoint not configured (VITE_API_ENDPOINT not set)');
   }
@@ -45,8 +49,10 @@ async function fetchLiveData(processRows) {
     ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
   };
 
-  if (API_TOKEN) {
-    headers['Authorization'] = `Bearer ${API_TOKEN}`;
+  // Auth priority: runtime Google token > static env token
+  const effectiveToken = accessToken || API_TOKEN;
+  if (effectiveToken) {
+    headers['Authorization'] = `Bearer ${effectiveToken}`;
   }
 
   let res;
@@ -57,6 +63,12 @@ async function fetchLiveData(processRows) {
     const corsError = new Error(`Network error — likely CORS: ${err.message}`);
     corsError.isCors = true;
     throw corsError;
+  }
+
+  if (res.status === 401) {
+    const authErr = new Error('HTTP 401 Unauthorized — Google authentication required');
+    authErr.isUnauthorized = true;
+    throw authErr;
   }
 
   if (!res.ok) {
