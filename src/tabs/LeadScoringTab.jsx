@@ -87,7 +87,7 @@ export default function LeadScoringTab({ data }) {
 
   if (!isEnriched) return (
     <Card style={{ padding: 48, textAlign: "center" }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+      <div style={{ marginBottom: 12, color: T.muted, lineHeight: 0 }}><svg width="36" height="32" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
       <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: "'Playfair Display', serif" }}>Lead Scoring requires enriched data</div>
       <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>Upload a CreditCheck XLSX (Rasmus format) with income, DTI and employment data</div>
     </Card>
@@ -121,7 +121,7 @@ export default function LeadScoringTab({ data }) {
 
           <select value={vertical} onChange={e => setVertical(e.target.value)} style={{ border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, background: T.surface2, fontFamily: "'Geist',sans-serif", outline: "none" }}>
             <option value="all">All Verticals</option>
-            {Object.values(VERTICALS_DEF).map(v => <option key={v.id} value={v.id}>{v.icon} {v.label}</option>)}
+            {Object.values(VERTICALS_DEF).map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
 
           <select value={empFilter} onChange={e => setEmpFilter(e.target.value)} style={{ border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, background: T.surface2, fontFamily: "'Geist',sans-serif", outline: "none" }}>
@@ -257,7 +257,7 @@ export default function LeadScoringTab({ data }) {
                       {(r.employment || "—").replace(/_/g, " ")}
                     </td>
                     <td style={{ padding: "9px 12px" }}>
-                      {purp ? <span style={{ fontSize: 10, fontWeight: 600, color: purp.color, background: `${purp.color}10`, padding: "2px 8px", borderRadius: 20, border: `1px solid ${purp.color}30` }}>{purp.icon} {purp.label}</span> : <span style={{ color: T.muted, fontSize: 11 }}>—</span>}
+                      {purp ? <span style={{ fontSize: 10, fontWeight: 600, color: purp.color, background: `${purp.color}10`, padding: "2px 8px", borderRadius: 20, border: `1px solid ${purp.color}30` }}>{purp.label}</span> : <span style={{ color: T.muted, fontSize: 11 }}>—</span>}
                     </td>
                     <td style={{ padding: "9px 12px" }}>
                       {r.emailVerified

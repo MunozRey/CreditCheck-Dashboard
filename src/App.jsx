@@ -605,14 +605,14 @@ function AppInner() {
           const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
           if (mins < 30) return (
             <div style={{ padding:"6px 24px", fontSize:11, background:T.greenBg, borderBottom:`1px solid ${T.green}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-              <span style={{ fontSize:12 }}>🟢</span>
+              <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.green, flexShrink:0 }}/>
               <strong style={{ color:T.green }}>Live data</strong>
               <span style={{ color:T.muted }}>— Auto-refreshes every 60 min · Updated {fmtAgo(liveStatus.at)}</span>
             </div>
           );
           return (
             <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-              <span style={{ fontSize:12 }}>🟡</span>
+              <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.amber, flexShrink:0 }}/>
               <strong style={{ color:T.amber }}>Live · {fmtAgo(liveStatus.at)}</strong>
               <span style={{ color:T.muted }}>— Data may be stale · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Refresh now</button></span>
             </div>
@@ -631,21 +631,21 @@ function AppInner() {
         );
         if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
           <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ fontSize:12 }}>⚠️</span>
+            <svg width="12" height="11" viewBox="0 0 14 13" fill="none" style={{ flexShrink:0, color:T.amber }}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
             <strong style={{ color:T.amber }}>Auto-fetch unavailable</strong>
             <span style={{ color:T.muted }}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current && snapshotDate && <>Showing sample data.</>}</span>
           </div>
         );
         if (liveStatus && !liveStatus.ok) return (
           <div style={{ padding:"6px 24px", fontSize:11, background:T.redBg, borderBottom:`1px solid ${T.red}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ fontSize:12 }}>🔴</span>
+            <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.red, flexShrink:0 }}/>
             <strong style={{ color:T.red }}>Offline · Using cached data</strong>
             <span style={{ color:T.muted }}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Retry</button></span>
           </div>
         );
         if (userUploadedRef.current && staleHours >= 2) return (
           <div style={{ padding:"7px 24px", fontSize:11, background:staleDays>=3?T.redBg:staleDays>=1?T.amberBg:T.greenBg, borderBottom:`1px solid ${staleDays>=3?T.red+"30":staleDays>=1?T.amber+"30":T.green+"30"}`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ fontSize:13 }}>{staleDays>=3?"🔴":staleDays>=1?"🟡":"🟢"}</span>
+            <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:staleDays>=3?T.red:staleDays>=1?T.amber:T.green, flexShrink:0 }}/>
             <strong style={{ color:staleDays>=3?T.red:staleDays>=1?T.amber:T.green }}>
               Snapshot {staleDays>=1?`${staleDays} day${staleDays>1?"s":""}`:`${staleHours}h`} old
             </strong>

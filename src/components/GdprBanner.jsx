@@ -79,7 +79,13 @@ export default function GdprBanner({ onClearData, snapshotDate, T }) {
             boxShadow: '0 8px 60px rgba(0,0,0,0.25)', padding: '36px 40px',
             border: '1px solid #E2E7F0',
           }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🔒</div>
+            <div style={{ marginBottom: 12, color: '#005EFF', lineHeight: 0 }}>
+              <svg width="28" height="28" viewBox="0 0 20 24" fill="none">
+                <rect x="1" y="10" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8"/>
+                <path d="M5 10V7a5 5 0 0110 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <circle cx="10" cy="16.5" r="2" fill="currentColor"/>
+              </svg>
+            </div>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#0A1628', marginBottom: 8 }}>
               Data Processing Acknowledgement
             </div>
@@ -119,7 +125,7 @@ export default function GdprBanner({ onClearData, snapshotDate, T }) {
           borderBottom: '1px solid #DC262630', display: 'flex',
           alignItems: 'center', gap: 10, fontFamily: "'IBM Plex Mono', monospace",
         }}>
-          <span>⚠️</span>
+          <svg width="12" height="11" viewBox="0 0 14 13" fill="none" style={{ flexShrink:0, color:'#DC2626' }}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
           <strong style={{ color: '#DC2626' }}>Data retention limit reached</strong>
           <span style={{ color: '#7080A0' }}>
             — Leads older than {RETENTION_DAYS} days should be deleted per your data retention policy.
@@ -145,7 +151,13 @@ export default function GdprBanner({ onClearData, snapshotDate, T }) {
             boxShadow: '0 8px 40px rgba(0,0,0,0.2)', padding: '32px 36px',
             border: '1px solid #E2E7F0', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🗑️</div>
+            <div style={{ marginBottom: 12, color: '#DC2626', lineHeight: 0, display: 'flex', justifyContent: 'center' }}>
+              <svg width="32" height="32" viewBox="0 0 20 22" fill="none">
+                <path d="M1 5h18M7 5V3a1 1 0 011-1h4a1 1 0 011 1v2M17 5l-1 14a2 2 0 01-2 2H6a2 2 0 01-2-2L3 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="8" y1="9" x2="8" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <line x1="12" y1="9" x2="12" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            </div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#0A1628', marginBottom: 8 }}>
               Clear All Stored Data?
             </div>

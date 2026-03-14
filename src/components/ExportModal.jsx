@@ -266,9 +266,9 @@ export default function ExportModal({ onClose, data }) {
           <div style={{ borderRight:`1px solid ${T.border}`, overflowY:"auto", padding:"16px 20px" }}>
 
             <SectionHdr>Category</SectionHdr>
-            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="🟦 Bank Connected"  color={T.blue}/>
-            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="🟨 Form Submitted"  color="#F59E0B"/>
-            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="⬜ Incomplete"       color={T.muted}/>
+            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="Bank Connected"  color={T.blue}/>
+            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="Form Submitted"  color="#F59E0B"/>
+            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="Incomplete"      color={T.muted}/>
 
             <SectionHdr>Vertical</SectionHdr>
             <Checkbox
@@ -282,7 +282,7 @@ export default function ExportModal({ onClose, data }) {
                 key={k}
                 checked={!verticals.all && verticals[k]}
                 onChange={()=>setVerts(p=>({...p, all:false, [k]:!p[k]}))}
-                label={`${vDef.icon} ${vDef.label}`}
+                label={vDef.label}
                 color={T.blue}
               />
             ))}
@@ -300,7 +300,7 @@ export default function ExportModal({ onClose, data }) {
                   key={code}
                   checked={!!countries[code]}
                   onChange={()=>setCountries(p=>({...p,[code]:!p[code]}))}
-                  label={COUNTRY_META[code] ? `${COUNTRY_META[code].flag} ${COUNTRY_META[code].label}` : code.toUpperCase()}
+                  label={COUNTRY_META[code] ? COUNTRY_META[code].label : code.toUpperCase()}
                   color={T.blue}
                 />
               ))}
@@ -499,7 +499,7 @@ export default function ExportModal({ onClose, data }) {
 
             <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", alignSelf:"center", flex:1 }}>
-                💡 Click the text to select all, then Ctrl+C / Cmd+C
+                Click the text to select all, then Ctrl+C / Cmd+C
               </div>
               <button onClick={()=>setShowCopy(false)} style={{ padding:"9px 18px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:600, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif" }}>
                 Close
