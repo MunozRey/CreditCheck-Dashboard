@@ -10,7 +10,7 @@
 //
 // Setup:
 //   a. Choose a strong password.
-//   b. Generate hash: node -e "crypto.createHash('sha256').update('yourpassword').digest('hex')|console.log"
+//   b. Generate hash: node -e "console.log(require('crypto').createHash('sha256').update('yourpassword').digest('hex'))"
 //      OR online: https://emn178.github.io/online-tools/sha256.html
 //   c. Set VITE_AUTH_PASSWORD_HASH=<hex> in your .env file.
 //
