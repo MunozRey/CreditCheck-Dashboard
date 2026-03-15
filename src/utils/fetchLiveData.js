@@ -36,7 +36,8 @@ export function invalidateCache() { _cache = null; }
  * Returns a cached response if it is fresher than CACHE_TTL_MS.
  * @param {Function} processRows - The processRows(rows, headers) parser function.
  * @returns {Promise<Object>} Parsed data with Bank Connected / Form Submitted / Incomplete keys.
- * @throws {Error} If fetch fails (CORS, network, HTTP error) or file is empty.
+ * @throws {Error} If fetch fails (CORS, network, HTTP error, auth) or file is empty.
+ *   401 errors additionally set err.isUnauthorized = true so callers can re-trigger OAuth.
  */
 async function fetchLiveData(processRows) {
   // Return cached data if fresh
@@ -59,8 +60,10 @@ async function fetchLiveData(processRows) {
     ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
   };
 
-  if (API_TOKEN) {
-    headers['Authorization'] = `Bearer ${API_TOKEN}`;
+  // Auth priority: runtime Google token > static env token
+  const effectiveToken = accessToken || API_TOKEN;
+  if (effectiveToken) {
+    headers['Authorization'] = `Bearer ${effectiveToken}`;
   }
 
   let res;
@@ -71,6 +74,12 @@ async function fetchLiveData(processRows) {
     const corsError = new Error(`Network error — likely CORS: ${err.message}`);
     corsError.isCors = true;
     throw corsError;
+  }
+
+  if (res.status === 401) {
+    const authErr = new Error('HTTP 401 Unauthorized — Google authentication required');
+    authErr.isUnauthorized = true;
+    throw authErr;
   }
 
   if (!res.ok) {

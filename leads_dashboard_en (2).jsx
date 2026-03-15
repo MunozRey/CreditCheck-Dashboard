@@ -61,34 +61,92 @@ function applyTheme(themeName) {
   let el = document.getElementById("cc-global-styles");
   if (!el) { el = document.createElement("style"); el.id = "cc-global-styles"; document.head.appendChild(el); }
   const t = THEMES[themeName];
+  // Encode muted color for SVG chevron (# → %23)
+  const chevron = t.muted.replace("#", "%23");
   el.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700;800;900&display=swap');
     *, *::before, *::after { box-sizing: border-box; }
-    body { background: ${t.bg} !important; font-family: 'IBM Plex Sans', 'Geist', sans-serif; }
+    body {
+      background: ${t.bg} !important;
+      font-family: 'IBM Plex Sans', 'Geist', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    /* ── Scrollbars ── */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: ${t.scrollThumb}; border-radius: 99px; }
     ::-webkit-scrollbar-thumb:hover { background: ${t.borderHi}; }
-    input[type=date]::-webkit-calendar-picker-indicator { filter: ${t.isDark ? "invert(0.6)" : "none"}; }
+    /* ── Date picker icon tint in dark mode ── */
+    input[type=date]::-webkit-calendar-picker-indicator { filter: ${t.isDark ? "invert(0.6)" : "none"}; opacity: 0.7; cursor: pointer; }
+    /* ── Select: remove native OS appearance, add custom chevron ── */
+    select {
+      -webkit-appearance: none;
+      appearance: none;
+      padding-right: 28px !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='${chevron}' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 8px center !important;
+      background-size: 10px 6px !important;
+    }
     select option { background: ${t.surface}; color: ${t.text}; }
+    /* ── Input appearance resets (Safari/iOS) ── */
+    input[type=date], input[type=time], input[type=month] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    /* ── Remove iOS tap highlight flash on interactive elements ── */
+    button, a, label, [role=button], [tabindex="0"] {
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* ── Animations ── */
     @keyframes cc-fade-in { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
     @keyframes cc-spin { to { transform: rotate(360deg); } }
     .cc-tab-content { animation: cc-fade-in 0.18s ease; }
+    /* ── Table row hover ── */
     .cc-row:hover td { background: ${t.rowHover} !important; }
+    /* ── Button & card interactions ── */
     .cc-btn { transition: all 0.14s ease; cursor: pointer; }
     .cc-btn:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
     .cc-card { transition: border-color 0.14s ease; }
     .cc-card:hover { border-color: ${t.borderHi} !important; }
+    /* ── Input base style ── */
     .cc-input {
       background: ${t.surface2}; color: ${t.text};
       border: 1px solid ${t.border}; border-radius: 7px;
       padding: 6px 10px; font-size: 11px; font-family: 'IBM Plex Sans', 'Geist', sans-serif;
       outline: none; transition: border-color .14s;
+      -webkit-appearance: none; appearance: none;
     }
     .cc-input:focus { border-color: ${t.blue}; box-shadow: 0 0 0 3px ${t.accentGlow}; }
     .cc-input::placeholder { color: ${t.muted}; }
+    /* ── Focus rings ── */
     button:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
     a:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
+    /* ── Sticky header support (Safari requires -webkit-sticky) ── */
+    .cc-sticky { position: -webkit-sticky; position: sticky; }
+    /* ── Navigation — scrollable on narrow screens ── */
+    .cc-nav { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+    .cc-nav::-webkit-scrollbar { display: none; }
+    /* ── Table wrappers ── */
+    .cc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* ── Responsive breakpoints ── */
+    @media (max-width: 900px) {
+      .cc-kpi-strip { grid-template-columns: repeat(2,1fr) !important; }
+      .cc-leads-layout { grid-template-columns: 1fr !important; }
+      .cc-tab-content { padding: 16px 14px !important; }
+    }
+    @media (max-width: 640px) {
+      .cc-tab-content { padding: 12px 10px !important; }
+      .cc-export-modal { width: 95vw !important; max-height: 95vh !important; border-radius: 12px !important; }
+      .cc-export-body { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .cc-kpi-strip { grid-template-columns: 1fr !important; }
+      .cc-export-modal { width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; }
+    }
   `;
   try { window.storage?.set("cc_theme", themeName).catch(() => {}); } catch(_){}
 }
@@ -402,7 +460,7 @@ function SectionTitle({children,action}) {
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
       {typeof children==="string"
-        ?<span style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:1.8,textTransform:"uppercase",fontFamily:"'IBM Plex Mono',monospace"}}>{children}</span>
+        ?<span style={{fontSize:11,fontWeight:700,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'IBM Plex Mono',monospace"}}>{children}</span>
         :children}
       {action&&<div>{action}</div>}
     </div>
@@ -495,7 +553,7 @@ function CustomTooltip({active,payload,label,formatter}) {
       padding:"12px 16px",
       border:`1px solid ${T.borderHi}`,
       boxShadow:"0 4px 24px rgba(0,0,0,0.15)",
-      minWidth:140,
+      minWidth:180,
       fontFamily:"'Geist',sans-serif",
     }}>
       <div style={{
@@ -550,15 +608,17 @@ function UploadZone({onData}) {
 
   const borderColor={idle:T.border,ok:T.green,err:T.red,loading:T.blue}[status];
   return (
-    <div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
+    <div role="button" tabIndex={0}
+      onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
       onDrop={e=>{e.preventDefault();setDrag(false);handle(e.dataTransfer.files[0]);}}
       onClick={()=>fileRef.current?.click()}
+      onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileRef.current?.click();}}}
       style={{
         border:`1px dashed ${drag?T.blue:T.borderHi}`,
         borderRadius:12,padding:"28px 20px",textAlign:"center",
-        background:drag?"rgba(59,130,246,0.06)":T.surface2,
+        background:drag?T.accentGlow:T.surface2,
         cursor:"pointer",transition:"all .2s",
-        boxShadow:drag?`0 0 0 3px rgba(59,130,246,0.15)`:"none",
+        boxShadow:drag?`0 0 0 3px ${T.accentGlow}`:"none",
       }}>
       <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={e=>handle(e.target.files[0])}/>
       <div style={{fontSize:24,marginBottom:10,lineHeight:1}}>
@@ -611,9 +671,9 @@ function LeadsTab({data}) {
   const colCount=showEmail?4:3;
 
   return (
-    <div style={{display:"grid",gridTemplateColumns:"188px 1fr",gap:16}}>
+    <div className="cc-leads-layout" style={{display:"grid",gridTemplateColumns:"188px 1fr",gap:16}}>
       <Card style={{padding:"12px 10px",height:"fit-content"}}>
-        <div style={{fontSize:9,fontWeight:800,color:T.muted,marginBottom:10,letterSpacing:1.5,textTransform:"uppercase",padding:"0 6px"}}>Categories</div>
+        <div style={{fontSize:10,fontWeight:800,color:T.muted,marginBottom:10,letterSpacing:1.5,textTransform:"uppercase",padding:"0 6px"}}>Categories</div>
         {["Bank Connected","Form Submitted","Incomplete"].map(c=>{
           const count=(data[c]||[]).length,active=cat===c,s=CAT_STYLE[c];
           return (
@@ -645,9 +705,9 @@ function LeadsTab({data}) {
 
           {/* Controls — only visible when table is open */}
           {tableOpen && (<>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             <span style={{fontSize:11,color:T.muted}}>→</span>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             {(dateFrom||dateTo)&&<button onClick={()=>{setDateFrom("");setDateTo("");}} style={{fontSize:12,color:T.red,background:"none",border:"none",cursor:"pointer",fontWeight:700}}>✕</button>}
             <input placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",fontSize:11,width:180,outline:"none",color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif"}}/>
             <select value={purposeFilter} onChange={e=>setPurposeFilter(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 8px",fontSize:11,color:T.text,outline:"none",background:T.surface2,maxWidth:150,fontFamily:"'Geist',sans-serif"}}>
@@ -675,6 +735,8 @@ function LeadsTab({data}) {
           {/* Collapse / expand toggle — always visible */}
           <button
             onClick={()=>setTableOpen(v=>!v)}
+            aria-expanded={tableOpen}
+            aria-controls="leads-table-section"
             title={tableOpen?"Collapse table":"Expand table"}
             style={{
               display:"flex",alignItems:"center",gap:5,
@@ -694,12 +756,12 @@ function LeadsTab({data}) {
 
         {/* ── Table — hidden when collapsed ── */}
         {tableOpen && (
-          <div style={{overflowY:"auto",maxHeight:520}}>
+          <div id="leads-table-section" className="cc-table-wrap" style={{overflowY:"auto",overflowX:"auto",maxHeight:520}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead>
                 <tr style={{background:T.surface2,position:"sticky",top:0,zIndex:1}}>
                   {[{k:"name",l:"Name"},showEmail&&{k:"email",l:"Email"},{k:"purpose",l:"Purpose"},{k:"created",l:"Date"}].filter(Boolean).map(col=>(
-                    <th key={col.k} onClick={()=>setSortBy(col.k)} style={{padding:"9px 14px",textAlign:"left",fontWeight:700,color:sortBy===col.k?T.navy:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`,cursor:"pointer",userSelect:"none"}}>
+                    <th key={col.k} onClick={()=>setSortBy(col.k)} aria-sort={sortBy===col.k?"descending":"none"} style={{padding:"9px 14px",textAlign:"left",fontWeight:700,color:sortBy===col.k?T.navy:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`,cursor:"pointer",userSelect:"none"}}>
                       {col.l}{sortBy===col.k?" ↓":""}
                     </th>
                   ))}
@@ -714,7 +776,7 @@ function LeadsTab({data}) {
                         <span style={{fontWeight:600,color:T.text,fontSize:13}}>{row.name ? toTitleCase(row.name) : "—"}</span>
                       </div>
                     </td>
-                    {showEmail&&<td style={{padding:"10px 16px",color:T.muted,fontFamily:"'SF Mono',ui-monospace,monospace",fontSize:11,letterSpacing:-0.2}}>{row.email||"—"}</td>}
+                    {showEmail&&<td style={{padding:"10px 16px",color:T.muted,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace",fontSize:11,letterSpacing:-0.2}}>{row.email||"—"}</td>}
                     <td style={{padding:"10px 16px"}}>
                       {row.purpose
                         ? <span style={{display:"inline-block",padding:"3px 10px",borderRadius:20,background:`${T.blue}0D`,border:`1px solid ${T.blue}25`,fontSize:11,fontWeight:600,color:T.blue,textTransform:"capitalize"}}>{row.purpose.replace(/_/g," ")}</span>
@@ -827,7 +889,7 @@ function AnalyticsTab({data}) {
                 <div key={g} style={{padding:"12px",background:s.bg,borderRadius:8,textAlign:"center",border:`1px solid ${s.color}22`}}>
                   <div style={{fontSize:28,fontWeight:900,color:s.color}}>{g}</div>
                   <div style={{fontSize:10,fontWeight:700,color:s.color,marginTop:2}}>{s.label}</div>
-                  <div style={{fontSize:9,color:T.muted,marginTop:2}}>{s.desc}</div>
+                  <div style={{fontSize:10,color:T.muted,marginTop:2}}>{s.desc}</div>
                 </div>
               ))}
             </div>
@@ -873,7 +935,7 @@ function AnalyticsTab({data}) {
             </div>
           </div>
         </SectionTitle>
-        {bcOnlyMode&&<div style={{marginBottom:12,padding:"8px 12px",background:T.amberBg,borderRadius:8,fontSize:11,color:T.amber,border:`1px solid ${T.amber}40`}}>⚠️ Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
+        {bcOnlyMode&&<div style={{marginBottom:12,padding:"8px 12px",background:T.amberBg,borderRadius:8,fontSize:11,color:T.amber,border:`1px solid ${T.amber}40`,display:"flex",alignItems:"center",gap:6}}><svg width="13" height="12" viewBox="0 0 14 13" fill="none" style={{flexShrink:0}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg> Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
           {[["7 days",7],["30 days",30],["90 days",90],["12 months",365]].map(([label,days])=>{
             const projBC=Math.round(dailyBCAvg*days);
@@ -888,11 +950,11 @@ function AnalyticsTab({data}) {
                 <div style={{display:"grid",gridTemplateColumns:bcOnlyMode?"1fr":"1fr 1fr",gap:6}}>
                   <div style={{background:CAT_STYLE["Bank Connected"].light,borderRadius:6,padding:"6px 4px",textAlign:"center"}}>
                     <div style={{fontSize:13,fontWeight:800,color:T.navy}}>{fmtNum(projBC)}</div>
-                    <div style={{fontSize:9,color:T.muted}}>BC</div>
+                    <div style={{fontSize:10,color:T.muted}}>BC</div>
                   </div>
                   {!bcOnlyMode&&<div style={{background:CAT_STYLE["Form Submitted"].light,borderRadius:6,padding:"6px 4px",textAlign:"center"}}>
                     <div style={{fontSize:13,fontWeight:800,color:T.blue}}>{fmtNum(projFS)}</div>
-                    <div style={{fontSize:9,color:T.muted}}>FS</div>
+                    <div style={{fontSize:10,color:T.muted}}>FS</div>
                   </div>}
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:T.muted,textAlign:"center"}}>{bcOnlyMode?"BC only":` BC Rate: ${projRate}%`}</div>
@@ -945,11 +1007,11 @@ function MonthNav({ y, m, onChange }) {
   const isToday = y === ty && m === tm;
   return (
     <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <button onClick={prev} style={{width:28,height:28,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontSize:14,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+      <button onClick={prev} style={{width:36,height:36,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:"pointer",fontSize:14,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
       <div style={{minWidth:110,textAlign:"center"}}>
         <span style={{fontSize:14,fontWeight:800,color:T.text}}>{MONTHS[m]} {y}</span>
       </div>
-      <button onClick={next} disabled={isToday} style={{width:28,height:28,borderRadius:7,border:`1px solid ${T.border}`,background:isToday?T.surface2:T.surface2,cursor:isToday?"not-allowed":"pointer",fontSize:14,color:isToday?T.border:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+      <button onClick={next} disabled={isToday} style={{width:36,height:36,borderRadius:7,border:`1px solid ${T.border}`,background:T.surface2,cursor:isToday?"not-allowed":"pointer",fontSize:14,color:isToday?T.border:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
     </div>
   );
 }
@@ -1006,7 +1068,7 @@ function RevenueTab({ partners, monthData }) {
 
       {noData ? (
         <Card style={{padding:48,textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          <div style={{marginBottom:12,color:T.muted,lineHeight:0}}><svg width="32" height="28" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
           <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:6}}>No data for {MONTHS[m]} {y}</div>
           <div style={{fontSize:12,color:T.muted}}>Go to the <strong>Partners</strong> tab and enter leads for this month.</div>
         </Card>
@@ -1031,7 +1093,7 @@ function RevenueTab({ partners, monthData }) {
               <thead>
                 <tr style={{background:T.surface2}}>
                   {["Partner","Model","BC Leads","BC Rev","FS Leads","FS Rev","Total"].map(h=>(
-                    <th key={h} style={{padding:"8px 14px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                    <th key={h} style={{padding:"8px 14px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1039,7 +1101,7 @@ function RevenueTab({ partners, monthData }) {
                 {partnerRows.map(p=>(
                   <tr key={p.id} style={{borderBottom:`1px solid ${T.surface2}`,opacity:p.active?1:0.45}} onMouseEnter={e=>e.currentTarget.style.background=T.rowHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"10px 14px",fontWeight:600,color:T.text}}>
-                      <span style={{color:p.active?T.green:T.muted,marginRight:6,fontSize:9}}>●</span>{p.name}
+                      <span style={{color:p.active?T.green:T.muted,marginRight:6,fontSize:10}}>●</span>{p.name}
                     </td>
                     <td style={{padding:"10px 14px",textAlign:"right"}}>
                       <span style={{padding:"2px 8px",borderRadius:20,background:`${MODEL_COLORS[p.model]}18`,color:MODEL_COLORS[p.model],fontSize:10,fontWeight:700}}>{p.model.toUpperCase()}</span>
@@ -1051,7 +1113,7 @@ function RevenueTab({ partners, monthData }) {
                     <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:T.navy,fontSize:13}}>{fmtEur(p.tot)}</td>
                   </tr>
                 ))}
-                <tr style={{background:T.surface2}}>
+                <tr style={{background:T.navy}}>
                   <td colSpan={2} style={{padding:"10px 14px",color:"#fff",fontWeight:800}}>TOTAL</td>
                   <td style={{padding:"10px 14px",textAlign:"right",color:"rgba(255,255,255,0.7)",fontWeight:700}}>{totBC||"—"}</td>
                   <td style={{padding:"10px 14px",textAlign:"right",color:"#fff",fontWeight:700}}>{fmtEur(totBCRev)}</td>
@@ -1082,9 +1144,9 @@ function RevenueTab({ partners, monthData }) {
                 const isActive = d.label===MONTHS[m].slice(0,3);
                 return (
                   <div key={i} style={{textAlign:"center",padding:"8px 4px",background:isActive?T.navy:T.surface2,borderRadius:7}}>
-                    <div style={{fontSize:9,fontWeight:700,color:isActive?"rgba(255,255,255,0.55)":T.muted,textTransform:"uppercase",letterSpacing:0.5}}>{d.label}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:isActive?"rgba(255,255,255,0.55)":T.muted,textTransform:"uppercase",letterSpacing:0.5}}>{d.label}</div>
                     <div style={{fontSize:11,fontWeight:800,color:isActive?"#fff":T.navy,marginTop:2}}>{d.rev>0?fmtEur(d.rev):"—"}</div>
-                    <div style={{fontSize:9,color:isActive?T.muted:T.muted}}>{d.leads>0?`${d.leads}L`:"—"}</div>
+                    <div style={{fontSize:10,color:isActive?T.muted:T.muted}}>{d.leads>0?`${d.leads}L`:"—"}</div>
                   </div>
                 );
               })}
@@ -1231,7 +1293,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                     {/* BC */}
                     <div style={{padding:12,background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.navy}`}}>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>BC Leads</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>BC Leads</div>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <PreciseInput value={e.bcCount} onChange={v=>updEntry(p.id,{bcCount:v})} color={T.navy} width={60}/>
                         <span style={{fontSize:11,color:T.muted}}>leads</span>
@@ -1261,7 +1323,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
 
                     {/* FS */}
                     <div style={{padding:12,background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.blue}`}}>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>FS Leads</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>FS Leads</div>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <PreciseInput value={e.fsCount} onChange={v=>updEntry(p.id,{fsCount:v})} color={T.blue} width={60}/>
                         <span style={{fontSize:11,color:T.muted}}>leads</span>
@@ -1293,7 +1355,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                   {/* Bottom row: note + total */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:12,alignItems:"center"}}>
                     <div>
-                      <div style={{fontSize:9,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:4}}>Note</div>
+                      <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:0.8,textTransform:"uppercase",marginBottom:4}}>Note</div>
                       <input
                         value={e.note}
                         onChange={ev=>updEntry(p.id,{note:ev.target.value})}
@@ -1302,7 +1364,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                       />
                     </div>
                     <div style={{textAlign:"right",padding:"10px 16px",background:T.navy,borderRadius:8,minWidth:100}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.8}}>Total</div>
+                      <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:0.8}}>Total</div>
                       <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{fmtEur(tot)}</div>
                     </div>
                   </div>
@@ -1330,7 +1392,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {["Partner","Leads","Revenue"].map(h=>(
-                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Partner"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1349,7 +1411,7 @@ function MultiPartnerTab({ partners, setPartners, monthData, setMonthData }) {
                       </tr>
                     );
                   })}
-                  <tr style={{background:T.surface2}}>
+                  <tr style={{background:T.navy}}>
                     <td style={{padding:"8px 12px",color:"#fff",fontWeight:800,fontSize:11}}>TOTAL</td>
                     <td style={{padding:"8px 12px",textAlign:"right",color:"#fff",fontWeight:700}}>{totLeads>0?totLeads:"—"}</td>
                     <td style={{padding:"8px 12px",textAlign:"right",color:"#fff",fontWeight:800}}>{fmtEur(totRev)}</td>
@@ -1472,7 +1534,7 @@ function InsightsTab({data}) {
     <div style={{display:"grid",gap:20}}>
 
       {/* ── Top KPIs ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:14}}>
         <KpiCard label="Avg Income"        value={fmtK(avg(allIncomes))}   sub={`Median ${fmtK(median(allIncomes))}`}  accent={T.navy}/>
         <KpiCard label="Avg Loan Request"  value={fmtK(avg(allLoans))}     sub={`Median ${fmtK(median(allLoans))}`}   accent={T.blue}/>
         <KpiCard label="BC Avg Income"     value={fmtK(avg(bcIncomes))}    sub={`vs FS ${fmtK(avg(fsIncomes))}`}      accent={T.blue2}/>
@@ -1590,7 +1652,7 @@ function InsightsTab({data}) {
                 <div key={label}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <div style={{display:"flex",alignItems:"center",gap:7}}>
-                      <span style={{fontSize:9,fontWeight:700,fontFamily:"'IBM Plex Mono',monospace",
+                      <span style={{fontSize:10,fontWeight:700,fontFamily:"'IBM Plex Mono',monospace",
                         background:`${color}20`,color,border:`1px solid ${color}40`,
                         borderRadius:4,padding:"1px 5px",letterSpacing:0.5}}>
                         {range}
@@ -1710,7 +1772,7 @@ function DataQualityTab({data}) {
 
   const issueColor = { error: T.red, warning: T.amber, ok: T.green };
   const issueIcon  = { error: "🔴", warning: "🟡", ok: "✅" };
-  const issueBg    = { error: T.redBg, warning: T.amberBg, ok: "#F0FDF4" };
+  const issueBg    = { error: T.redBg, warning: T.amberBg, ok: T.greenBg };
   const issueBorder= { error: "#FCA5A5", warning: "rgba(245,158,11,0.3)", ok: "rgba(16,185,129,0.3)" };
 
   // ── Duplicates stats (derived from what the parser removed) ────────────────
@@ -1817,7 +1879,7 @@ function DataQualityTab({data}) {
               return (
                 <div key={d.domain}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                    <span style={{fontSize:12,color:T.text,fontFamily:"monospace"}}>@{d.domain}</span>
+                    <span style={{fontSize:12,color:T.text,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace"}}>@{d.domain}</span>
                     <span style={{fontSize:12,fontWeight:700,color:colors[i]}}>{d.count} <span style={{color:T.muted,fontWeight:400}}>({d.pct}%)</span></span>
                   </div>
                   <div style={{height:6,background:T.surface2,borderRadius:4}}>
@@ -1865,7 +1927,7 @@ function DataQualityTab({data}) {
                 {singleName.slice(0,8).map((r,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:T.surface2,borderRadius:6,fontSize:11}}>
                     <span style={{fontWeight:600,color:T.text}}>{r.name||"—"}</span>
-                    <span style={{color:T.muted,fontFamily:"monospace"}}>{r.email}</span>
+                    <span style={{color:T.muted,fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,monospace"}}>{r.email}</span>
                   </div>
                 ))}
                 {singleName.length > 8 && <div style={{fontSize:10,color:T.muted,textAlign:"center",padding:"4px"}}>+{singleName.length-8} more</div>}
@@ -1957,7 +2019,7 @@ function CountriesTab({ data }) {
             }}>
               <div style={{fontSize:22,marginBottom:4}}>{meta.flag}</div>
               <div style={{fontSize:12,fontWeight:800,color:isAct?"#fff":T.text,marginBottom:1}}>{meta.label}</div>
-              <div style={{fontSize:9,color:isAct?"rgba(255,255,255,0.6)":T.muted,fontStyle:"italic",marginBottom:4}}>{meta.lang}</div>
+              <div style={{fontSize:10,color:isAct?"rgba(255,255,255,0.85)":T.muted,fontStyle:"italic",marginBottom:4}}>{meta.lang}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:700,color:meta.color}}>{stat.total} leads</span>
                 <span style={{width:1,height:10,background:isAct?"rgba(255,255,255,0.3)":T.border,flexShrink:0}}/>
@@ -2020,7 +2082,7 @@ function CountriesTab({ data }) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {["Country","Leads","BC","BC%","Avg Loan"].map(h=>(
-                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Country"?"left":"right",fontWeight:700,color:T.muted,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                      <th key={h} style={{padding:"7px 12px",textAlign:h==="Country"?"left":"right",fontWeight:700,color:T.muted,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2031,7 +2093,7 @@ function CountriesTab({ data }) {
                     const avg  = stat.loans.length?Math.round(stat.loans.reduce((s,v)=>s+v,0)/stat.loans.length):null;
                     const isAct = active === code;
                     return (
-                      <tr key={code} onClick={()=>setActive(code)} style={{borderBottom:`1px solid ${T.surface2}`,cursor:"pointer",background:isAct?`${meta.color}0D`:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background=`${meta.color}0D`} onMouseLeave={e=>e.currentTarget.style.background=isAct?`${meta.color}0D`:"transparent"}>
+                      <tr key={code} onClick={()=>setActive(code)} style={{borderBottom:`1px solid ${T.surface2}`,cursor:"pointer",background:isAct?`${meta.color}1A`:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background=`${meta.color}1A`} onMouseLeave={e=>e.currentTarget.style.background=isAct?`${meta.color}1A`:"transparent"}>
                         <td style={{padding:"8px 12px",fontWeight:600,color:T.text}}>{meta.flag} {meta.label}</td>
                         <td style={{padding:"8px 12px",textAlign:"right",color:T.muted}}>{stat.total}</td>
                         <td style={{padding:"8px 12px",textAlign:"right",color:T.muted}}>{stat.bc}</td>
@@ -2056,7 +2118,7 @@ function CountriesTab({ data }) {
 // home_improvement: unsecured personal credit up to €50k, reform companies, faster closing
 const VERTICALS_DEF = {
   personal_loans: {
-    id:"personal_loans", label:"Personal Loans", icon:"💳",
+    id:"personal_loans", label:"Personal Loans",
     color:"#005EFF", lightBg:T.surface3, border:"rgba(59,130,246,0.3)",
     purposes:["personal_expenses","other","holiday","education","it_equipment"],
     desc:"Unsecured consumer credit — expenses, lifestyle, education",
@@ -2066,7 +2128,7 @@ const VERTICALS_DEF = {
     stats:{ avgIncome:2017, avgLoan:7511, avgAge:51, bcRate:39 },
   },
   reform: {
-    id:"reform", label:"Home Reform", icon:"🔨",
+    id:"reform", label:"Home Reform",
     color:"#00A651", lightBg:"#EDFAF3", border:"rgba(16,185,129,0.3)",
     purposes:["home_improvement"],
     desc:"Home reform & improvement — unsecured credit, no property appraisal",
@@ -2077,7 +2139,7 @@ const VERTICALS_DEF = {
     insightNote:"83% of reform leads request <€15k — typical unsecured personal credit range. Only 13 leads request >€15k where secured products might apply.",
   },
   mortgage: {
-    id:"mortgage", label:"Mortgage / Refinance", icon:"🏦",
+    id:"mortgage", label:"Mortgage / Refinance",
     color:"#6D28D9", lightBg:T.surface3, border:"rgba(139,92,246,0.3)",
     purposes:["refinance"],
     desc:"Mortgage refinancing — tied to property valuation, regulated product",
@@ -2086,10 +2148,10 @@ const VERTICALS_DEF = {
     modelNote:"CPL €20–50 or fixed fee per qualified lead · regulated by LCCI · longer sales cycle",
     stats:{ avgIncome:2009, avgLoan:14893, avgAge:52, bcRate:25, homeowners:39 },
     insightNote:"25% BC rate is lower — expected for mortgage (higher intent bar). 82% have existing loans (refinance intent confirmed). Needs LCCI compliance from partner.",
-    regulatory:"⚖️ LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
+    regulatory:"LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
   },
   vehicle_unsecured: {
-    id:"vehicle_unsecured", label:"Vehicle — Personal Credit", icon:"🚗",
+    id:"vehicle_unsecured", label:"Vehicle — Personal Credit",
     color:"#F59E0B", lightBg:T.amberBg, border:"rgba(245,158,11,0.4)",
     purposes:["vehicle"],
     // Filter applied in UI: loan ≤ €15k AND months ≤ 60
@@ -2102,7 +2164,7 @@ const VERTICALS_DEF = {
     stats:{ avgIncome:1952, avgLoan:4500, avgAge:48, bcRate:30 },
   },
   vehicle_secured: {
-    id:"vehicle_secured", label:"Vehicle — Secured Credit", icon:"🔐",
+    id:"vehicle_secured", label:"Vehicle — Secured Credit",
     color:"#DC2626", lightBg:T.redBg, border:"rgba(239,68,68,0.3)",
     purposes:["vehicle"],
     // Filter applied in UI: loan > €15k OR months > 60
@@ -2115,6 +2177,45 @@ const VERTICALS_DEF = {
     regulatory:"Vehicle registration as collateral requires notarial process (reserva de dominio or prenda sin desplazamiento). Partner must have this capability.",
     stats:{ avgIncome:2200, avgLoan:22000, avgAge:47, bcRate:17 },
   },
+};
+
+// ─── VERTICAL SVG ICONS ────────────────────────────────────────────────────────
+const VERTICAL_ICONS = {
+  personal_loans: (sz=20) => (
+    <svg width={sz} height={Math.round(sz*0.78)} viewBox="0 0 18 14" fill="none">
+      <rect x="1" y="1" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <line x1="1" y1="5" x2="17" y2="5" stroke="currentColor" strokeWidth="1.5"/>
+      <line x1="3" y1="9" x2="7" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  reform: (sz=20) => (
+    <svg width={sz} height={sz} viewBox="0 0 18 18" fill="none">
+      <path d="M2 8L9 2l7 6v8a1 1 0 01-1 1H3a1 1 0 01-1-1V8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M6 17V9h6v8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  ),
+  mortgage: (sz=20) => (
+    <svg width={Math.round(sz*0.89)} height={sz} viewBox="0 0 16 18" fill="none">
+      <rect x="1" y="6" width="14" height="11" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M0.5 7L8 2l7.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="5.5" y="11" width="5" height="6" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  vehicle_unsecured: (sz=20) => (
+    <svg width={sz} height={Math.round(sz*0.7)} viewBox="0 0 20 14" fill="none">
+      <path d="M4 7.5l2-5h8l2 5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="1" y="7.5" width="18" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <circle cx="15" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  vehicle_secured: (sz=20) => (
+    <svg width={Math.round(sz*0.78)} height={sz} viewBox="0 0 14 18" fill="none">
+      <rect x="2" y="8" width="10" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M4 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="7" cy="13" r="1.5" fill="currentColor"/>
+    </svg>
+  ),
 };
 
 // ─── VERTICALS TAB ─────────────────────────────────────────────────────────────
@@ -2168,7 +2269,7 @@ function VerticalsTab({data}) {
   return (
     <div style={{display:"grid",gap:18}}>
       {/* Vertical Selector Cards — 5 verticals, each product correctly separated */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
         {Object.values(VERTICALS_DEF).map(v=>{
           const base = [...bc,...fs].filter(r=>v.purposes.includes(r.purpose));
           const bBC  = bc.filter(r=>v.purposes.includes(r.purpose));
@@ -2182,9 +2283,9 @@ function VerticalsTab({data}) {
               border:`2px solid ${active?v.color:T.border}`,
               transition:"all .15s",boxShadow:active?"0 4px 16px rgba(0,0,0,0.15)":"none",
             }}>
-              <div style={{fontSize:20,marginBottom:7}}>{v.icon}</div>
+              <div style={{marginBottom:7,color:active?"#fff":v.color,lineHeight:0}}>{VERTICAL_ICONS[v.id]?.(20)}</div>
               <div style={{fontSize:13,fontWeight:900,color:active?"#fff":T.text,letterSpacing:-0.2}}>{v.label}</div>
-              <div style={{fontSize:10,color:active?"rgba(255,255,255,0.6)":T.muted,margin:"3px 0 10px",lineHeight:1.4}}>{v.desc}</div>
+              <div style={{fontSize:10,color:active?"rgba(255,255,255,0.85)":T.muted,margin:"3px 0 10px",lineHeight:1.4}}>{v.desc}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{fontSize:12,fontWeight:800,color:active?"#fff":v.color}}>{vl.length} leads</span>
                 <span style={{width:1,height:10,background:active?"rgba(255,255,255,0.3)":T.border,flexShrink:0}}/>
@@ -2207,7 +2308,7 @@ function VerticalsTab({data}) {
           borderRadius:8, fontSize:11,
           color: V.vehicleFilter==="secured" ? "#9F1239" : "#78350F",
         }}>
-          <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+          <svg width="16" height="14" viewBox="0 0 14 13" fill="none" style={{flexShrink:0}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
           <div style={{lineHeight:1.6}}>
             <strong>Heuristic segmentation — no explicit field in source data.</strong>{" "}
             {V.vehicleFilter==="unsecured"
@@ -2219,7 +2320,7 @@ function VerticalsTab({data}) {
 
       {vLeads.length===0 ? (
         <Card style={{padding:48,textAlign:"center"}}>
-          <div style={{fontSize:36,marginBottom:12}}>{V.icon}</div>
+          <div style={{marginBottom:12,color:V.color,lineHeight:0,display:"inline-block"}}>{VERTICAL_ICONS[V.id]?.(36)}</div>
           <div style={{fontSize:15,fontWeight:700,color:T.text}}>No leads in this vertical</div>
           <div style={{fontSize:12,color:T.muted,marginTop:6}}>Upload a XLSX with loan purpose data</div>
         </Card>
@@ -2266,6 +2367,54 @@ function VerticalsTab({data}) {
             </Card>
           )}
 
+          {/* Vertical Insights */}
+          {(()=>{
+            const vertStats = Object.values(VERTICALS_DEF).map(v=>{
+              const base = all.filter(r=>v.purposes.includes(r.purpose));
+              const baseBC = bc.filter(r=>v.purposes.includes(r.purpose));
+              const vl = applyVehicleFilter(base, v.vehicleFilter);
+              const vb = applyVehicleFilter(baseBC, v.vehicleFilter);
+              const rate = vl.length>0 ? Math.round(vb.length/vl.length*100) : 0;
+              return {v, count:vl.length, bcCount:vb.length, rate};
+            }).filter(s=>s.count>0);
+            if (vertStats.length===0) return null;
+            const maxCount = Math.max(...vertStats.map(s=>s.count));
+            const bestBC  = [...vertStats].sort((a,b)=>b.rate-a.rate)[0];
+            const bestVol = [...vertStats].sort((a,b)=>b.count-a.count)[0];
+            return (
+              <Card style={{padding:20}}>
+                <SectionTitle>Vertical Insights</SectionTitle>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                  <div style={{padding:"10px 12px",background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.green}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Best BC Rate</div>
+                    <div style={{fontSize:18,fontWeight:900,color:T.green}}>{bestBC.rate}%</div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:1}}>{bestBC.v.label}</div>
+                  </div>
+                  <div style={{padding:"10px 12px",background:T.surface2,borderRadius:8,borderTop:`2px solid ${T.blue}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Highest Volume</div>
+                    <div style={{fontSize:18,fontWeight:900,color:T.blue}}>{bestVol.count}</div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:1}}>{bestVol.v.label}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:10,fontWeight:700,color:T.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Leads by Vertical</div>
+                {vertStats.map(({v,count,bcCount,rate})=>(
+                  <div key={v.id} style={{marginBottom:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:11,color:T.text,fontWeight:600}}>{v.label}</span>
+                      <span style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>
+                        <span style={{fontWeight:700,color:v.color}}>{count}</span>
+                        <span style={{color:T.muted}}> · </span>
+                        <span style={{fontWeight:700,color:T.green}}>{rate}% BC</span>
+                      </span>
+                    </div>
+                    <div style={{height:5,background:T.surface2,borderRadius:3}}>
+                      <div style={{height:"100%",width:`${maxCount>0?Math.round(count/maxCount*100):0}%`,background:v.color,borderRadius:3,transition:"width .4s"}}/>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            );
+          })()}
 
         </div>
 
@@ -2405,12 +2554,12 @@ function ScoreBar({score}) {
 // Employment options for filter
 const EMP_OPTIONS = [
   {value:"all",           label:"All Employment"},
-  {value:"civil_servant", label:"🏛 Civil Servant"},
-  {value:"employed",      label:"💼 Employed"},
-  {value:"self_employed", label:"🧑‍💻 Self-Employed"},
-  {value:"retired",       label:"🧓 Retired"},
-  {value:"part_time",     label:"⏱ Part-Time"},
-  {value:"unemployed",    label:"⚠️ Unemployed"},
+  {value:"civil_servant", label:"Civil Servant"},
+  {value:"employed",      label:"Employed"},
+  {value:"self_employed", label:"Self-Employed"},
+  {value:"retired",       label:"Retired"},
+  {value:"part_time",     label:"Part-Time"},
+  {value:"unemployed",    label:"Unemployed"},
 ];
 
 function LeadScoringTab({data}) {
@@ -2488,7 +2637,7 @@ function LeadScoringTab({data}) {
 
   if (!isEnriched) return (
     <Card style={{padding:48,textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:12}}>📊</div>
+      <div style={{marginBottom:12,color:T.muted,lineHeight:0}}><svg width="36" height="32" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
       <div style={{fontSize:15,fontWeight:700,color:T.text}}>Lead Scoring requires enriched data</div>
       <div style={{fontSize:12,color:T.muted,marginTop:6}}>Upload a CreditCheck XLSX (Rasmus format) with income, DTI and employment data</div>
     </Card>
@@ -2497,7 +2646,7 @@ function LeadScoringTab({data}) {
   return (
     <div style={{display:"grid",gap:16}}>
       {/* Header row — 6 KPIs including Grade D */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
         {[
           {label:"Scored Leads",   val:filtered.length,  sub:"after filters",    color:T.text},
           {label:"Grade A ≥75",    val:buckets.A,        sub:"Top tier",         color:T.green},
@@ -2508,7 +2657,7 @@ function LeadScoringTab({data}) {
         ].map(k=>(
           <Card key={k.label} style={{padding:"14px 16px",position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,${k.color}70,transparent)`}}/>
-            <div style={{fontSize:9,fontWeight:600,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
+            <div style={{fontSize:10,fontWeight:600,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
             <div style={{fontSize:24,fontWeight:800,color:k.color,letterSpacing:-0.5,fontVariantNumeric:"tabular-nums",fontFamily:"'Geist',sans-serif"}}>{k.val}</div>
             <div style={{fontSize:10,color:T.muted,marginTop:3}}>{k.sub}</div>
           </Card>
@@ -2522,7 +2671,7 @@ function LeadScoringTab({data}) {
 
           <select value={vertical} onChange={e=>setVertical(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif",outline:"none"}}>
             <option value="all">All Verticals</option>
-            {Object.values(VERTICALS_DEF).map(v=><option key={v.id} value={v.id}>{v.icon} {v.label}</option>)}
+            {Object.values(VERTICALS_DEF).map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
 
           <select value={empFilter} onChange={e=>setEmpFilter(e.target.value)} style={{border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 8px",fontSize:11,color:T.text,background:T.surface2,fontFamily:"'Geist',sans-serif",outline:"none"}}>
@@ -2567,7 +2716,7 @@ function LeadScoringTab({data}) {
             <thead>
               <tr style={{background:T.surface2}}>
                 {["#","Name","Score","Cat","Income","Loan","DTI","Employment","Vertical","Email"].map(h=>(
-                  <th key={h} style={{padding:"9px 12px",textAlign:"left",fontSize:9,fontWeight:800,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",borderBottom:`2px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                  <th key={h} style={{padding:"9px 12px",textAlign:"left",fontSize:10,fontWeight:800,color:T.muted,letterSpacing:1.2,textTransform:"uppercase",borderBottom:`2px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -2592,7 +2741,7 @@ function LeadScoringTab({data}) {
                     </td>
                     <td style={{padding:"9px 12px"}}>
                       <span style={{
-                        fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:4,
+                        fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,
                         fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5,
                         background:r._cat==="BC"?T.greenBg:`${T.blue}15`,
                         color:r._cat==="BC"?T.green:T.blue,
@@ -2609,7 +2758,7 @@ function LeadScoringTab({data}) {
                       {dtiVal ? (
                         <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
                           <span style={{fontWeight:700,color:dtiColor}}>{dtiVal}%</span>
-                          <span style={{fontSize:9,fontWeight:600,fontFamily:"'IBM Plex Mono',monospace",
+                          <span style={{fontSize:10,fontWeight:600,fontFamily:"'IBM Plex Mono',monospace",
                             color:dtiColor,background:`${dtiColor}18`,border:`1px solid ${dtiColor}35`,
                             borderRadius:3,padding:"1px 4px",letterSpacing:0.4}}>
                             {dtiVal<30?"SOL":dtiVal<35?"ACE":dtiVal<40?"AJU":dtiVal<50?"ALT":"EXC"}
@@ -2621,7 +2770,7 @@ function LeadScoringTab({data}) {
                       {(r.employment||"—").replace(/_/g," ")}
                     </td>
                     <td style={{padding:"9px 12px"}}>
-                      {purp?<span style={{fontSize:10,fontWeight:600,color:purp.color,background:`${purp.color}10`,padding:"2px 8px",borderRadius:20,border:`1px solid ${purp.color}30`}}>{purp.icon} {purp.label}</span>:<span style={{color:T.muted,fontSize:11}}>—</span>}
+                      {purp?<span style={{fontSize:10,fontWeight:600,color:purp.color,background:`${purp.color}10`,padding:"2px 8px",borderRadius:20,border:`1px solid ${purp.color}30`}}>{purp.label}</span>:<span style={{color:T.muted,fontSize:11}}>—</span>}
                     </td>
                     <td style={{padding:"9px 12px"}}>
                       {r.emailVerified
@@ -2640,14 +2789,14 @@ function LeadScoringTab({data}) {
               </span>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={page===0}
-                  style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===0?T.muted:T.text,fontSize:11,cursor:page===0?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
+                  style={{padding:"8px 14px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===0?T.muted:T.text,fontSize:11,cursor:page===0?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
                   ← Prev
                 </button>
-                <span style={{padding:"4px 10px",fontSize:11,color:T.muted,fontFamily:"'IBM Plex Mono',monospace",alignSelf:"center"}}>
+                <span style={{padding:"8px 10px",fontSize:11,color:T.muted,fontFamily:"'IBM Plex Mono',monospace",alignSelf:"center"}}>
                   {page+1} / {totalPages}
                 </span>
                 <button onClick={()=>setPage(p=>Math.min(totalPages-1,p+1))} disabled={page===totalPages-1}
-                  style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===totalPages-1?T.muted:T.text,fontSize:11,cursor:page===totalPages-1?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
+                  style={{padding:"8px 14px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface2,color:page===totalPages-1?T.muted:T.text,fontSize:11,cursor:page===totalPages-1?"default":"pointer",fontFamily:"'Geist',sans-serif"}}>
                   Next →
                 </button>
               </div>
@@ -2692,7 +2841,7 @@ const REPORT_DEFS = [
   {
     id:"ops_full",
     category:"internal",
-    icon:"🔒",
+    icon:"",
     label:"Operations Report",
     audience:"Management & Ops team",
     desc:"Full pipeline view: quality score, domain breakdown, DTI analysis, email health, funnel with drop-off, financial profile. Confidential.",
@@ -2702,7 +2851,7 @@ const REPORT_DEFS = [
   {
     id:"exec_summary",
     category:"internal",
-    icon:"📊",
+    icon:"",
     label:"Executive Summary",
     audience:"C-Level · Board · Investors",
     desc:"High-level board-ready summary: batch performance vs. previous period, revenue model projection, top verticals, quality rating and strategic recommendations.",
@@ -2712,7 +2861,7 @@ const REPORT_DEFS = [
   {
     id:"risk_screening",
     category:"internal",
-    icon:"⚠️",
+    icon:"",
     label:"Risk Screening Report",
     audience:"Risk & Compliance team",
     desc:"High-risk lead identification: DTI >50%, single-name leads, unverified emails, inconsistent financial data. Flag before sending to regulated partners.",
@@ -2724,7 +2873,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_personal",
     category:"vertical",
-    icon:"💳",
+    icon:"",
     label:"Personal Loans Batch",
     audience:"Consumer finance · BNPL · Neobanks",
     desc:"Personal expenses, lifestyle, education and general consumer credit leads. Employment mix, income profile, DTI and top purposes filtered to this vertical.",
@@ -2735,7 +2884,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_reform",
     category:"vertical",
-    icon:"🔨",
+    icon:"",
     label:"Home Reform Batch",
     audience:"Reform financing · Home improvement lenders · Consumer banks",
     desc:"Home improvement leads. Unsecured personal credit — no appraisal needed. 83% request <€15k. 42% homeowners. Faster closing than mortgage. Different product entirely.",
@@ -2746,7 +2895,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_mortgage",
     category:"vertical",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage / Refinance Batch",
     audience:"Mortgage brokers · Banks · Intermediarios hipotecarios",
     desc:"Refinancing leads. Secured product tied to property valuation. 82% have existing loans — confirmed refinance intent. Avg term 67 months. LCCI regulated.",
@@ -2757,7 +2906,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_vehicle_unsecured",
     category:"vertical",
-    icon:"🚗",
+    icon:"",
     label:"Vehicle — Personal Credit Batch",
     audience:"Consumer finance · Cetelem · Cofidis · Bank personal loan desks",
     desc:"Vehicle purchase leads financed via unsecured personal credit (loan ≤€15k, term ≤60 months). Vehicle is the destination — underwriting is on income/DTI, not vehicle value. ~14 leads.",
@@ -2768,7 +2917,7 @@ const REPORT_DEFS = [
   {
     id:"vertical_vehicle_secured",
     category:"vertical",
-    icon:"🔐",
+    icon:"",
     label:"Vehicle — Secured Credit Batch",
     audience:"ALD Automotive · Arval · Specialized auto lenders · Dealers with secured financing",
     desc:"Vehicle-secured credit leads (loan >€15k or term >60 months). Vehicle is the collateral — partner must handle valuation (ITV/tasación) and registration (reserva de dominio). ~6 leads.",
@@ -2780,7 +2929,7 @@ const REPORT_DEFS = [
   {
     id:"partner_mortgage",
     category:"partner",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage Partner Pack",
     audience:"Banks · Mortgage brokers · Hipotecas.com · iAhorro",
     desc:"Curated for mortgage brokers and banks. Refinancing leads with confirmed intent (82% existing loans), homeowner profile, avg loan €14.9k, LCCI compliance context. No internal data.",
@@ -2791,7 +2940,7 @@ const REPORT_DEFS = [
   {
     id:"partner_auto",
     category:"partner",
-    icon:"🔑",
+    icon:"",
     label:"Auto Secured Credit — Partner Pack",
     audience:"ALD · Arval · LeasePlan · Specialized auto lenders",
     desc:"Vehicle-secured credit leads only (loan >€15k or term >60 months). Includes income, employment and loan profile. Clean external format — no internal ops data.",
@@ -2802,7 +2951,7 @@ const REPORT_DEFS = [
   {
     id:"partner_neobank",
     category:"partner",
-    icon:"📱",
+    icon:"",
     label:"Neobank / BNPL Pack",
     audience:"Revolut · Cofidis · Vivus · WiZink",
     desc:"Personal loans vertical optimized for neobank and BNPL partners. Focus on digital-first profile, younger segment, income <€2k — high-volume plays.",
@@ -2814,7 +2963,7 @@ const REPORT_DEFS = [
   {
     id:"premium_bc",
     category:"premium",
-    icon:"⭐",
+    icon:"",
     label:"Premium BC Segment",
     audience:"Tier-1 partners · Fintonic · Banks · Comparators",
     desc:"Bank Connected only, income >€2,000 and loan >€5,000. Highest conversion potential in the batch. Avg income €2.7k · Avg loan €15k.",
@@ -2825,7 +2974,7 @@ const REPORT_DEFS = [
   {
     id:"retired_segment",
     category:"premium",
-    icon:"🧓",
+    icon:"",
     label:"Retired Segment",
     audience:"Consumer finance · Pension credit specialists",
     desc:"Retired profile leads. Stable pension income, avg €2,051/mo. Low DTI risk. Specific partner type: personal credit with pension collateral.",
@@ -2837,7 +2986,7 @@ const REPORT_DEFS = [
   {
     id:"generic_partner",
     category:"external",
-    icon:"🤝",
+    icon:"",
     label:"Generic Partner Overview",
     audience:"Any new or prospective partner",
     desc:"Clean external overview: volume, quality badge, loan purposes and financial profile. Zero internal ops data. Safe to share with any external party.",
@@ -3072,7 +3221,7 @@ function makeHeader(reportLabel, dateFrom, dateTo, today, badgeHTML="") {
 }
 
 function makePrintBtn() {
-  return `<div class="no-print"><button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button></div>`;
+  return `<div class="no-print"><button class="btn-print" onclick="window.print()">Print / Save as PDF</button></div>`;
 }
 
 function makeKPIGrid(items) {
@@ -3123,15 +3272,15 @@ function makeReport(reportDef, data) {
   const isRisk      = reportDef.id === "risk_screening";
   const isExec      = reportDef.id === "exec_summary";
 
-  const badgeHTML = isInternal ? `<span class="badge badge-int">🔒 Internal</span>` :
-                    isPremium  ? `<span class="badge badge-prem">⭐ Premium</span>` :
-                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">⚠️ Risk &amp; Compliance</span>` :
+  const badgeHTML = isInternal ? `<span class="badge badge-int">Internal</span>` :
+                    isPremium  ? `<span class="badge badge-prem">Premium</span>` :
+                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">Risk &amp; Compliance</span>` :
                                  `<span class="badge badge-ext">Partner Distribution</span>`;
 
   const intBanner = isRisk
-    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;">⚠️ <strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
+    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;"><strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
     : isInternal
-    ? `<div class="int-banner">🔒 <strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
+    ? `<div class="int-banner"><strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
     : "";
 
   // KPI grid selection
@@ -3330,7 +3479,7 @@ function makeReport(reportDef, data) {
   ${dtiSection}
   ${opts.vertical==="mortgage" ? `
   <div class="section">
-    <div class="section-title">⚖️ Regulatory Context</div>
+    <div class="section-title">Regulatory Context</div>
     <div style="background:#FEF9EC;border:1px solid #FDE68A;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#92400E;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Regulatory framework</div>
@@ -3344,7 +3493,7 @@ function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_secured" ? `
   <div class="section">
-    <div class="section-title">⚠️ Product & Heuristic Note</div>
+    <div class="section-title">Product & Heuristic Note</div>
     <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#9F1239;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Segmentation method</div>
@@ -3356,7 +3505,7 @@ function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_unsecured" ? `
   <div class="section">
-    <div class="section-title">ℹ️ Product Classification Note</div>
+    <div class="section-title">Product Classification Note</div>
     <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:14px 20px;font-size:12px;color:#78350F;line-height:1.7;">
       <strong>Segmentation based on heuristic — no explicit field in source data.</strong>
       Leads classified as unsecured personal credit (loan ≤€15k AND term ≤60 months).
@@ -3367,7 +3516,7 @@ function makeReport(reportDef, data) {
   ${isInternal||isVertical||isSegment||isPartner||isPremium ? `<div class="section"><div class="two-col">${domainSection}${residSection}</div></div>` : ""}
   <div class="footer">
     <span>CreditCheck by Clovr Labs · ${today}</span>
-    <span>${isInternal||isRisk?"🔒 Internal — Confidential":isPremium?"⭐ Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
+    <span>${isInternal||isRisk?"Internal — Confidential":isPremium?"Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
   </div>
 </div></body></html>`;
 
@@ -3380,6 +3529,25 @@ function ExportModal({onClose, data}) {
   const fs   = data["Form Submitted"]  || [];
   const inc  = data["Incomplete"]      || [];
   const all  = [...bc, ...fs, ...inc];
+
+  // ── Focus trap ────────────────────────────────────────────────────────────────
+  const modalRef = useRef(null);
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+    const trap = e => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const f = Array.from(el.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])'));
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last?.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first?.focus(); } }
+    };
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, [onClose]);
 
   // ── Filter state ────────────────────────────────────────────────────────────
   const [cats,    setCats]    = useState({ bc:true, fs:true, inc:false });
@@ -3531,9 +3699,11 @@ function ExportModal({onClose, data}) {
   // ── UI helpers ───────────────────────────────────────────────────────────────
   const Toggle = ({checked, onChange, label, accent=T.blue}) => (
     <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",userSelect:"none"}}>
-      <div onClick={onChange} style={{
+      <input type="checkbox" checked={checked} onChange={onChange} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+      <div style={{
         width:32,height:18,borderRadius:9,background:checked?accent:T.borderHi,
         position:"relative",transition:"background .15s",cursor:"pointer",flexShrink:0,
+        pointerEvents:"none",
       }}>
         <div style={{
           width:14,height:14,borderRadius:"50%",background:"#fff",
@@ -3547,10 +3717,11 @@ function ExportModal({onClose, data}) {
 
   const Checkbox = ({checked, onChange, label, color=T.blue}) => (
     <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",userSelect:"none",padding:"5px 0"}}>
-      <div onClick={onChange} style={{
+      <input type="checkbox" checked={checked} onChange={onChange} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+      <div style={{
         width:16,height:16,borderRadius:4,border:`2px solid ${checked?color:T.border}`,
         background:checked?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",
-        transition:"all .12s",cursor:"pointer",flexShrink:0,
+        transition:"all .12s",flexShrink:0,pointerEvents:"none",
       }}>
         {checked&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
       </div>
@@ -3563,12 +3734,12 @@ function ExportModal({onClose, data}) {
   );
 
   const VERT_LABELS = {
-    personal_loans:"💳 Personal Loans", reform:"🔨 Home Reform",
-    mortgage:"🏦 Mortgage / Refinance", vehicle_unsecured:"🚗 Vehicle Personal Credit", vehicle_secured:"🔐 Vehicle Secured",
+    personal_loans:"Personal Loans", reform:"Home Reform",
+    mortgage:"Mortgage / Refinance", vehicle_unsecured:"Vehicle Personal Credit", vehicle_secured:"Vehicle Secured",
   };
   const COUNTRY_META_LOCAL = {
-    es:"🇪🇸 Spain", en:"🌍 English-speaking", pt:"🇵🇹 Portugal",
-    it:"🇮🇹 Italy", fr:"🇫🇷 France", de:"🇩🇪 Germany", nl:"🇳🇱 Netherlands", pl:"🇵🇱 Poland",
+    es:"Spain", en:"English-speaking", pt:"Portugal",
+    it:"Italy", fr:"France", de:"Germany", nl:"Netherlands", pl:"Poland",
   };
 
   return (
@@ -3578,9 +3749,9 @@ function ExportModal({onClose, data}) {
       zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",
       backdropFilter:"blur(8px)",
     }} onClick={onClose}>
-      <div style={{
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Export Leads" className="cc-export-modal" style={{
         background:T.surface,
-        width:780,maxHeight:"90vh",
+        width:780,maxWidth:"95vw",maxHeight:"90vh",
         borderRadius:16,
         boxShadow:"0 40px 100px rgba(10,22,40,0.4)",
         display:"flex",flexDirection:"column",
@@ -3603,7 +3774,7 @@ function ExportModal({onClose, data}) {
               <span style={{color:T.muted,fontWeight:400,marginLeft:6,marginRight:6}}>·</span>
               <span style={{color:T.textSub,fontWeight:600,fontSize:12}}>Export Leads</span>
             </div>
-            <div style={{fontSize:9,color:T.muted,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>
+            <div style={{fontSize:10,color:T.muted,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>
               filter · select fields · download
             </div>
           </div>
@@ -3612,15 +3783,15 @@ function ExportModal({onClose, data}) {
         </div>
 
         {/* ── Body: 2 columns ── */}
-        <div style={{display:"grid",gridTemplateColumns:"260px 1fr",flex:1,overflow:"hidden"}}>
+        <div className="cc-export-body" style={{display:"grid",gridTemplateColumns:"260px 1fr",flex:1,overflow:"hidden"}}>
 
           {/* LEFT — Filters */}
           <div style={{borderRight:`1px solid ${T.border}`,overflowY:"auto",padding:"16px 20px"}}>
 
             <SectionHdr>Category</SectionHdr>
-            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="🟦 Bank Connected"  color={T.blue}/>
-            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="🟨 Form Submitted"  color="#F59E0B"/>
-            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="⬜ Incomplete"       color={T.muted}/>
+            <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="Bank Connected"  color={T.blue}/>
+            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="Form Submitted"  color="#F59E0B"/>
+            <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="Incomplete"      color={T.muted}/>
 
             <SectionHdr>Vertical</SectionHdr>
             <Checkbox
@@ -3661,10 +3832,11 @@ function ExportModal({onClose, data}) {
             <SectionHdr>Format</SectionHdr>
             {[["csv","CSV (.csv)"],["tsv","Excel-ready (.tsv)"],["json","JSON (.json)"]].map(([val,lbl])=>(
               <label key={val} style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",padding:"5px 0"}}>
-                <div onClick={()=>setFmt(val)} style={{
+                <input type="radio" name="export-fmt" value={val} checked={fmt===val} onChange={()=>setFmt(val)} style={{position:"absolute",opacity:0,width:0,height:0,margin:0}}/>
+                <div style={{
                   width:16,height:16,borderRadius:"50%",border:`2px solid ${fmt===val?T.blue:T.border}`,
                   background:"transparent",display:"flex",alignItems:"center",justifyContent:"center",
-                  cursor:"pointer",flexShrink:0,transition:"border-color .12s",
+                  flexShrink:0,transition:"border-color .12s",pointerEvents:"none",
                 }}>
                   {fmt===val && <div style={{width:7,height:7,borderRadius:"50%",background:T.blue}}/>}
                 </div>
@@ -3698,7 +3870,7 @@ function ExportModal({onClose, data}) {
                 <thead>
                   <tr style={{background:T.surface2}}>
                     {activeFields.map(f=>(
-                      <th key={f.key} style={{padding:"7px 10px",textAlign:"left",color:"rgba(255,255,255,0.7)",fontWeight:700,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>
+                      <th key={f.key} style={{padding:"7px 10px",textAlign:"left",color:T.muted,fontWeight:700,fontSize:10,letterSpacing:0.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{f.label}</th>
                     ))}
                   </tr>
                 </thead>
@@ -3790,7 +3962,7 @@ function ExportModal({onClose, data}) {
             {/* Actions */}
             <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",alignSelf:"center",flex:1}}>
-                💡 Click the text to select all, then Ctrl+C / Cmd+C
+                Click the text to select all, then Ctrl+C / Cmd+C
               </div>
               <button onClick={()=>setShowCopy(false)} style={{padding:"9px 18px",borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"transparent",color:"rgba(255,255,255,0.5)",fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"'Geist',sans-serif"}}>
                 Close
@@ -3822,9 +3994,9 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:T.bg,fontFamily:"'DM Sans',sans-serif"}}>
+        <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:T.bg,fontFamily:"'IBM Plex Sans','Geist',sans-serif"}}>
           <div style={{maxWidth:480,padding:40,background:T.surface,borderRadius:16,boxShadow:"0 4px 40px rgba(0,0,0,0.6)",border:`1px solid ${T.border}`,textAlign:"center"}}>
-            <div style={{fontSize:40,marginBottom:16}}>⚠️</div>
+            <div style={{marginBottom:16,color:T.amber,lineHeight:0}}><svg width="40" height="36" viewBox="0 0 14 13" fill="none"><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg></div>
             <div style={{fontSize:18,fontWeight:800,color:T.text,marginBottom:8}}>Unexpected Error</div>
             <div style={{fontSize:13,color:T.muted,marginBottom:24,lineHeight:1.6}}>{this.state.error.message || "An error occurred. Reload the page and try again."}</div>
             <button onClick={()=>this.setState({error:null})} style={{padding:"10px 24px",background:T.blue,color:"#fff",border:"none",borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'IBM Plex Sans','Geist',sans-serif"}}>
@@ -4005,7 +4177,7 @@ function AppInner() {
           {/* Logo */}
           <div style={{display:"flex",alignItems:"center",gap:9,flexShrink:0,marginRight:12}}>
             <div style={{width:30,height:30,background:`linear-gradient(135deg,${T.blue},${T.navy})`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 0 1px ${T.blue}30,0 4px 12px ${T.blue}20`}}>
-              <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 18 18" fill="none">
                 <path d="M9 2L14.5 5V13L9 16L3.5 13V5L9 2Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
                 <path d="M6.5 9.5L8 11L11.5 7" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -4019,7 +4191,7 @@ function AppInner() {
           </div>
 
           {/* Tab nav */}
-          <nav style={{display:"flex",gap:0,flex:1,height:"100%",alignItems:"stretch"}}>
+          <nav className="cc-nav" style={{display:"flex",gap:0,flex:1,height:"100%",alignItems:"stretch"}}>
             {MAIN_TABS.map(t=>{
               const active=tab===t.id;
               return (
@@ -4073,6 +4245,7 @@ function AppInner() {
             <button
               className="cc-btn"
               onClick={toggleTheme}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               style={{
                 width:32,height:32,borderRadius:7,border:`1px solid ${T.border}`,
@@ -4081,8 +4254,8 @@ function AppInner() {
                 color:T.muted,flexShrink:0,
               }}>
               {theme === "light"
-                ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                ? <svg aria-hidden="true" width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg aria-hidden="true" width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               }
             </button>
 
@@ -4128,7 +4301,7 @@ function AppInner() {
 
       {/* ── KPI STRIP ── */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",maxWidth:1600,margin:"0 auto"}}>
+        <div className="cc-kpi-strip" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",maxWidth:1600,margin:"0 auto"}}>
           {[
             {label:"Total Leads",    value:total>0?total:"—",           sub:"unique · deduplicated",   color:T.text,  accent:T.blue,   icon:"◈"},
             {label:"Bank Connected", value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`, color:T.green, accent:T.green, icon:"✓"},
@@ -4144,7 +4317,7 @@ function AppInner() {
               <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,${k.accent}60,transparent)`}}/>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div>
-                  <div style={{fontSize:9,fontWeight:600,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>{k.label}</div>
                   <div style={{fontSize:36,fontWeight:800,color:k.color,letterSpacing:-1.5,lineHeight:1,fontVariantNumeric:"tabular-nums",fontFamily:"'Geist',sans-serif"}}>{k.value}</div>
                   <div style={{fontSize:10,color:T.muted,marginTop:6,fontFamily:"'IBM Plex Mono',monospace"}}>{k.sub}</div>
                 </div>
@@ -4193,7 +4366,7 @@ function AppInner() {
         // 2. CORS / network blocked — show actionable warning
         if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
           <div style={{padding:"6px 24px",fontSize:11,background:T.amberBg,borderBottom:`1px solid ${T.amber}30`,display:"flex",alignItems:"center",gap:8,fontFamily:"'IBM Plex Mono',monospace"}}>
-            <span style={{fontSize:12}}>⚠️</span>
+            <svg width="12" height="11" viewBox="0 0 14 13" fill="none" style={{flexShrink:0,color:T.amber}}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
             <strong style={{color:T.amber}}>Auto-fetch unavailable</strong>
             <span style={{color:T.muted}}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current&&snapshotDate&&<>Showing sample data.</>}</span>
           </div>
@@ -4201,7 +4374,7 @@ function AppInner() {
         // 3. Other API error
         if (liveStatus && !liveStatus.ok) return (
           <div style={{padding:"6px 24px",fontSize:11,background:T.redBg,borderBottom:`1px solid ${T.red}30`,display:"flex",alignItems:"center",gap:8,fontFamily:"'IBM Plex Mono',monospace"}}>
-            <span style={{fontSize:12}}>🔴</span>
+            <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:T.red,flexShrink:0}}/>
             <strong style={{color:T.red}}>Offline · Using cached data</strong>
             <span style={{color:T.muted}}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{background:"none",border:"none",padding:0,color:T.blue,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Retry</button></span>
           </div>

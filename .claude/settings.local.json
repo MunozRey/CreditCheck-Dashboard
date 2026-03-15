@@ -16,7 +16,11 @@
       "Bash(git config:*)",
       "Bash(gh repo:*)",
       "Bash(where gh:*)",
-      "Bash(winget list:*)"
+      "Bash(winget list:*)",
+      "Bash(npm run:*)",
+      "Bash(node_modules/.bin/vite build:*)",
+      "Read(//c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard/**)",
+      "Bash(node -e \":*)"
     ]
   }
 }

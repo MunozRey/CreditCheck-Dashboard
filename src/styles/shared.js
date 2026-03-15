@@ -4,14 +4,16 @@
 
 // Font sizes (fontSize:10 = 62 occurrences, fontSize:11 = 86+, fontSize:12 = 60+, fontSize:13 = 40+)
 export const FS = {
-  xs:   10,  // monospace labels, footnotes, timestamps
-  sm:   11,  // secondary text, table cells
-  base: 12,  // body default
-  md:   13,  // slightly emphasized body
-  lg:   14,  // card headers, tab labels
-  xl:   16,  // section headings
-  h2:   18,
-  h1:   22,
+  xs:      10,  // monospace labels, footnotes, timestamps
+  sm:      11,  // secondary text, table cells
+  base:    12,  // body default
+  md:      13,  // slightly emphasized body
+  lg:      14,  // card headers, tab labels
+  xl:      16,  // section headings
+  h2:      18,
+  h1:      22,
+  display: 30,  // KpiCard numbers
+  hero:    36,  // KPI strip numbers
 };
 
 // Font weights (fontWeight:700 = 70+ occurrences, fontWeight:600 = 50+)
@@ -75,3 +77,16 @@ export const ROW = (gap = 8) => ({ display: 'flex', alignItems: 'center', gap })
 
 // Card padding shorthand
 export const CARD_PAD = { padding: 20 };
+
+// Shadow scale — consistent elevation tokens
+export const SHADOW = {
+  sm:  '0 1px 4px rgba(0,0,0,0.08)',
+  md:  '0 4px 16px rgba(0,0,0,0.12)',
+  lg:  '0 8px 32px rgba(0,0,0,0.16)',
+  xl:  '0 24px 64px rgba(10,18,32,0.28)',
+  modal: '0 40px 100px rgba(10,22,40,0.4)',
+};
+
+// Transition constants — use these instead of ad-hoc strings
+export const TRANSITION_FAST = 'all 0.14s ease';
+export const TRANSITION_SLOW = 'all 0.3s ease';
