@@ -22,17 +22,28 @@ if (!LIVE_ENDPOINT && import.meta.env.PROD) {
   console.warn('[fetchLiveData] VITE_API_ENDPOINT is not set. Live fetch will be skipped.');
 }
 
+// Module-level response cache — prevents redundant network requests within the TTL window.
+// The App already enforces a 60-min refresh interval, but this guards against concurrent
+// mount calls or force-refreshes that land within the same cache window.
+const CACHE_TTL_MS = 55 * 60 * 1000; // 55 min — slightly under the 60-min app interval
+let _cache = null; // { data: Object, fetchedAt: number }
+
+/** Invalidate the module-level cache (e.g. after a manual upload replaces live data). */
+export function invalidateCache() { _cache = null; }
+
 /**
  * Fetches the live XLSX export and returns parsed lead data.
- * @param {Function} processRows  - The processRows(rows, headers) parser function.
- * @param {string|null} [accessToken] - Optional Google OAuth 2.0 access token.
- *   When provided, takes precedence over the VITE_API_TOKEN env var.
- *   Pass null/undefined to fall back to the static env token.
+ * Returns a cached response if it is fresher than CACHE_TTL_MS.
+ * @param {Function} processRows - The processRows(rows, headers) parser function.
  * @returns {Promise<Object>} Parsed data with Bank Connected / Form Submitted / Incomplete keys.
  * @throws {Error} If fetch fails (CORS, network, HTTP error, auth) or file is empty.
  *   401 errors additionally set err.isUnauthorized = true so callers can re-trigger OAuth.
  */
-async function fetchLiveData(processRows, accessToken = null) {
+async function fetchLiveData(processRows) {
+  // Return cached data if fresh
+  if (_cache && Date.now() - _cache.fetchedAt < CACHE_TTL_MS) {
+    return _cache.data;
+  }
   if (!LIVE_ENDPOINT) {
     throw new Error('Live endpoint not configured (VITE_API_ENDPOINT not set)');
   }
@@ -98,7 +109,9 @@ async function fetchLiveData(processRows, accessToken = null) {
   const MAX_ROWS = 10_000;
   const dataRows = rows.length > MAX_ROWS + 1 ? rows.slice(1, MAX_ROWS + 1) : rows.slice(1);
 
-  return processRows(dataRows, rows[0].map(h => String(h || '')));
+  const result = processRows(dataRows, rows[0].map(h => String(h || '')));
+  _cache = { data: result, fetchedAt: Date.now() };
+  return result;
 }
 
 export default fetchLiveData;

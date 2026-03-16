@@ -148,7 +148,7 @@ function applyTheme(themeName) {
       .cc-export-modal { width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; }
     }
   `;
-  try { window.storage?.set("cc_theme", themeName); } catch(_){}
+  try { window.storage?.set("cc_theme", themeName).catch(() => {}); } catch(_){}
 }
 
 // CAT_STYLE declared first (empty) so applyTheme can mutate it safely
@@ -4053,11 +4053,15 @@ function fmtAgo(date) {
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 function AppInner() {
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState(() => {
-    // Sync read needed for useState init; window.storage.get is async so we read the underlying key directly.
-    // The window.storage polyfill wraps localStorage, so this is safe in both environments.
-    try { return localStorage.getItem("cc_theme") || "light"; } catch(_) { return "light"; }
-  });
+  const [theme, setTheme] = useState("light");
+
+  // Restore theme from encrypted storage (async — window.storage returns a Promise).
+  useEffect(() => {
+    window.storage?.get("cc_theme").then(r => {
+      const v = r?.value;
+      if (v === "light" || v === "dark") setTheme(v);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { applyTheme(theme); }, [theme]);
 
@@ -4137,9 +4141,6 @@ function AppInner() {
   const fs=(data["Form Submitted"]||[]).length;
   const incomplete=(data["Incomplete"]||[]).length;
   const total=bc+fs+incomplete;
-
-  const bcDates=[...new Set((data["Bank Connected"]||[]).map(r=>r.created).filter(Boolean))];
-  const dataSpanDays=Math.max(bcDates.length,1);
 
   const allDates=[...(data["Bank Connected"]||[]),...(data["Form Submitted"]||[]),...(data["Incomplete"]||[])]
     .map(r=>r.created).filter(Boolean).sort();
@@ -4260,8 +4261,8 @@ function AppInner() {
 
             {/* Save indicator */}
             <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",borderRadius:6,opacity:storageReady?1:0.4,transition:"opacity .3s"}} title="Auto-saved">
-              <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M8.5 6.5v1.5a.5.5 0 01-.5.5H2a.5.5 0 01-.5-.5V6.5M5 1v5M3 4l2 2 2-2" stroke={storageReady?"#10B981":T.muted} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span style={{fontSize:10,color:storageReady?"#10B981":T.muted,fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5}}>{storageReady?"SAVED":"..."}</span>
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M8.5 6.5v1.5a.5.5 0 01-.5.5H2a.5.5 0 01-.5-.5V6.5M5 1v5M3 4l2 2 2-2" stroke={storageReady?T.green:T.muted} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span style={{fontSize:9,color:storageReady?T.green:T.muted,fontFamily:"'IBM Plex Mono',monospace",letterSpacing:0.5}}>{storageReady?"SAVED":"..."}</span>
             </div>
 
             {/* Export button */}
