@@ -10,7 +10,6 @@ import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
 
 import LeadsTab        from './tabs/LeadsTab.jsx';
-import PriorityTab     from './tabs/PriorityTab.jsx';
 import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
 import VerticalsTab    from './tabs/VerticalsTab.jsx';
 import CountriesTab    from './tabs/CountriesTab.jsx';
@@ -44,7 +43,6 @@ function patchAccentColors(next) {
 
 const MAIN_TABS = [
   { id:"leads",     label:"Leads" },
-  { id:"priority",  label:"Priority" },
   { id:"analytics", label:"Analytics" },
   { id:"verticals", label:"Verticals" },
   { id:"countries", label:"Countries" },
@@ -276,7 +274,7 @@ function AppInner() {
   const bc         = (filteredData["Bank Connected"] || []).length;
   const fs         = (filteredData["Form Submitted"] || []).length;
   const incomplete = (filteredData["Incomplete"]     || []).length;
-  const total      = bc + fs + incomplete;
+  const total      = bc + fs; // active leads only — Incomplete/cancelled excluded
 
   const allDates = [...(data["Bank Connected"]||[]),...(data["Form Submitted"]||[]),...(data["Incomplete"]||[])]
     .map(r=>r.created).filter(Boolean).sort();
@@ -506,7 +504,7 @@ function AppInner() {
             <>
               <button onClick={() => { setDrFrom(""); setDrTo(""); }} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.red, fontSize:10, fontWeight:700, cursor:"pointer" }}>✕ Clear</button>
               <span style={{ fontSize:10, color:T.amber, fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>
-                {(drFrom || drTo) && `${total} leads in range`}
+                {(drFrom || drTo) && `${total} active leads in range`}
               </span>
             </>
           )}
@@ -520,7 +518,7 @@ function AppInner() {
       <div data-cc="kpi-strip" style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
         <div style={{ display:"grid", gridTemplateColumns:`repeat(${[settings.kpiTotal,settings.kpiBC,settings.kpiFS,settings.kpiIncomplete,settings.kpiAvgScore].filter(v=>v!==false).length},1fr)`, maxWidth:1600, margin:"0 auto" }}>
           {[
-            { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"unique · deduplicated",                                     color:T.text,  accent:T.blue,  icon:"◈" },
+            { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"active leads · BC + FS",                                    color:T.text,  accent:T.blue,  icon:"◈" },
             { key:"kpiBC",         label:"Bank Connected",  value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`,  color:T.green, accent:T.green, icon:"✓" },
             { key:"kpiFS",         label:"Form Submitted",  value:fs>0?fs:"—",                 sub:"Pending bank connection",                                   color:T.blue,  accent:T.blue,  icon:"◷" },
             { key:"kpiIncomplete", label:"Incomplete",      value:incomplete>0?incomplete:"—", sub:"Cancelled / dropped off",                                   color:T.amber, accent:T.amber, icon:"◌" },
@@ -668,7 +666,7 @@ function AppInner() {
 
       {/* Report / Export modal */}
       {showReportModal && (
-        <ExportModal data={data} onClose={() => setShowReportModal(false)}/>
+        <ExportModal data={filteredData} onClose={() => setShowReportModal(false)}/>
       )}
 
       {/* Keyboard help overlay */}
@@ -680,7 +678,6 @@ function AppInner() {
       {/* ── Tab content ── */}
       <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
         {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
-        {tab==="priority"  && <PriorityTab     data={filteredData}/>}
         {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
         {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
         {tab==="countries" && <CountriesTab    data={filteredData}/>}
