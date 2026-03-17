@@ -6,6 +6,15 @@ import Avatar from '../components/Avatar.jsx';
 import Chip from '../components/Chip.jsx';
 import LeadDrawer from '../components/LeadDrawer.jsx';
 
+// ── localStorage persistence ──────────────────────────────────────────────────
+const PREFS_KEY = 'creditcheck_dashboard_prefs';
+function readPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch(_) { return {}; }
+}
+function savePrefs(patch) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ ...readPrefs(), ...patch })); } catch(_) {}
+}
+
 // Default visible columns
 const ALL_COLUMNS = [
   { key: "name",       label: "Name",       always: true },
@@ -22,21 +31,29 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const { T } = useTheme();
   const CAT_STYLE = getCatStyle(T);
 
-  const [cat, setCat]               = useState(defaultCat);
+  const [cat, setCat]               = useState(() => readPrefs().tableCategory || "Bank Connected");
   const [search, setSearch]         = useState("");
   const [dateFrom, setDateFrom]     = useState("");
   const [dateTo, setDateTo]         = useState("");
   const [tableOpen, setTableOpen]   = useState(true);
-  const [sortBy, setSortBy]         = useState(defaultSort);
+  const [sortBy, setSortBy]         = useState(() => readPrefs().tableSort || defaultSort || "created");
   const [starOnly, setStarOnly]     = useState(false);
   const [purposeFilter, setPurposeFilter]   = useState("all");
   const [empFilter, setEmpFilter]           = useState("all");
   const [countryFilter, setCountryFilter]   = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState("all");
-  const [visibleCols, setVisibleCols]       = useState(DEFAULT_VISIBLE);
+  const [visibleCols, setVisibleCols]       = useState(() => {
+    const prefs = readPrefs();
+    return Array.isArray(prefs.visibleColumns) ? new Set(prefs.visibleColumns) : DEFAULT_VISIBLE;
+  });
   const [showColMenu, setShowColMenu]       = useState(false);
   const [selectedLead, setSelectedLead]     = useState(null);
   const colMenuRef = useRef(null);
+
+  // ── Persist preferences on change ────────────────────────────────────────
+  useEffect(() => { savePrefs({ tableCategory: cat }); }, [cat]);
+  useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]);
+  useEffect(() => { savePrefs({ visibleColumns: [...visibleCols] }); }, [visibleCols]);
 
   // Close column menu on outside click
   useEffect(() => {
@@ -212,6 +229,15 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                       {col.label}
                     </label>
                   ))}
+                  <div style={{ borderTop: `1px solid ${T.border}`, margin: "6px 0 0" }}>
+                    <button onClick={() => {
+                      setVisibleCols(DEFAULT_VISIBLE);
+                      savePrefs({ visibleColumns: [...DEFAULT_VISIBLE] });
+                      setShowColMenu(false);
+                    }} style={{ width: "100%", background: "none", border: "none", padding: "7px 14px", fontSize: 11, color: T.muted, cursor: "pointer", textAlign: "left", fontFamily: "'Geist',sans-serif" }}>
+                      Reset to defaults
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
