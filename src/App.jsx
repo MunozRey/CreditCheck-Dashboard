@@ -119,6 +119,44 @@ function AppInner() {
   }, []);
   const resetCountdown = useCallback(() => setNextRefreshMins(60), []);
 
+  // ── Google OAuth 2.0 state (token in memory only — never persisted) ──────
+  const GOOGLE_CLIENT_ID           = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const [googleToken, setGoogleToken]   = useState(null);
+  const [googleUser,  setGoogleUser]    = useState(null); // { email, name, picture }
+  const googleTokenRef             = useRef(null);
+  const tokenClientRef             = useRef(null);
+  const tokenRefreshTimerRef       = useRef(null);
+
+  const handleTokenSuccess = useCallback((response) => {
+    const token     = response.access_token;
+    const expiresIn = Number(response.expires_in) || 3600;
+    googleTokenRef.current = token;
+    setGoogleToken(token);
+    clearTimeout(tokenRefreshTimerRef.current);
+    tokenRefreshTimerRef.current = setTimeout(() => {
+      if (tokenClientRef.current) requestToken(tokenClientRef.current, true);
+    }, Math.max(0, (expiresIn - 300) * 1000));
+    fetchGoogleUserInfo(token)
+      .then(info => setGoogleUser({ email: info.email, name: info.name, picture: info.picture }))
+      .catch(() => {});
+    lastFetchRef.current = 0;
+    runFetchCore(true, token);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    loadGIS()
+      .then(() => {
+        tokenClientRef.current = createTokenClient(
+          GOOGLE_CLIENT_ID,
+          handleTokenSuccess,
+          (err) => console.warn('[GoogleAuth] Token error:', err),
+        );
+      })
+      .catch(err => console.warn('[GoogleAuth] GIS load failed:', err));
+    return () => clearTimeout(tokenRefreshTimerRef.current);
+  }, [GOOGLE_CLIENT_ID, handleTokenSuccess]);
+
   // ── Live data fetch state ─────────────────────────────────────────────────
   const [liveStatus, setLiveStatus] = useState(null);
   const [fetching, setFetching]     = useState(false);
