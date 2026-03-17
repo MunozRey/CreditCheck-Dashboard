@@ -18,9 +18,17 @@ import { THEMES, applyTheme } from '../constants/themes.js';
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('cc_theme') || 'light'; } catch (_) { return 'light'; }
-  });
+  const [theme, setTheme] = useState('light');
+
+  // Restore persisted theme from encrypted storage on mount.
+  // Must be async — window.storage.get returns a Promise (AES-GCM decryption).
+  // Defaults to 'light' until the async read completes (brief flash acceptable).
+  useEffect(() => {
+    window.storage?.get('cc_theme').then(r => {
+      const v = r?.value;
+      if (v === 'light' || v === 'dark') setTheme(v);
+    }).catch(() => {});
+  }, []);
 
   // Sync global CSS + mutable T proxy whenever theme changes
   useEffect(() => {

@@ -18,7 +18,7 @@ export const COUNTRY_META = {
 // home_improvement: unsecured personal credit up to €50k, faster closing
 export const VERTICALS_DEF = {
   personal_loans: {
-    id:"personal_loans", label:"Personal Loans", icon:"💳",
+    id:"personal_loans", label:"Personal Loans",
     color:"#005EFF", lightBg:T.surface3, border:"rgba(59,130,246,0.3)",
     purposes:["personal_expenses","other","holiday","education","it_equipment"],
     desc:"Unsecured consumer credit — expenses, lifestyle, education",
@@ -28,7 +28,7 @@ export const VERTICALS_DEF = {
     stats:{ avgIncome:2017, avgLoan:7511, avgAge:51, bcRate:39 },
   },
   reform: {
-    id:"reform", label:"Home Reform", icon:"🔨",
+    id:"reform", label:"Home Reform",
     color:"#00A651", lightBg:"#EDFAF3", border:"rgba(16,185,129,0.3)",
     purposes:["home_improvement"],
     desc:"Home reform & improvement — unsecured credit, no property appraisal",
@@ -48,10 +48,10 @@ export const VERTICALS_DEF = {
     modelNote:"CPL €20–50 or fixed fee per qualified lead · regulated by LCCI · longer sales cycle",
     stats:{ avgIncome:2009, avgLoan:14893, avgAge:52, bcRate:25, homeowners:39 },
     insightNote:"25% BC rate is lower — expected for mortgage (higher intent bar). 82% have existing loans (refinance intent confirmed). Needs LCCI compliance from partner.",
-    regulatory:"⚖️ LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
+    regulatory:"LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
   },
   vehicle_unsecured: {
-    id:"vehicle_unsecured", label:"Vehicle — Personal Credit", icon:"🚗",
+    id:"vehicle_unsecured", label:"Vehicle — Personal Credit",
     color:"#F59E0B", lightBg:T.amberBg, border:"rgba(245,158,11,0.4)",
     purposes:["vehicle"],
     vehicleFilter:"unsecured",
@@ -63,7 +63,7 @@ export const VERTICALS_DEF = {
     stats:{ avgIncome:1952, avgLoan:4500, avgAge:48, bcRate:30 },
   },
   vehicle_secured: {
-    id:"vehicle_secured", label:"Vehicle — Secured Credit", icon:"🔐",
+    id:"vehicle_secured", label:"Vehicle — Secured Credit",
     color:"#DC2626", lightBg:T.redBg, border:"rgba(239,68,68,0.3)",
     purposes:["vehicle"],
     vehicleFilter:"secured",

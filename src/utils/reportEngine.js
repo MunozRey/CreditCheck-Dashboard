@@ -6,7 +6,7 @@ export const getReportDefs = (T) => [
   {
     id:"ops_full",
     category:"internal",
-    icon:"🔒",
+    icon:"",
     label:"Operations Report",
     audience:"Management & Ops team",
     desc:"Full pipeline view: quality score, domain breakdown, DTI analysis, email health, funnel with drop-off, financial profile. Confidential.",
@@ -16,7 +16,7 @@ export const getReportDefs = (T) => [
   {
     id:"exec_summary",
     category:"internal",
-    icon:"📊",
+    icon:"",
     label:"Executive Summary",
     audience:"C-Level · Board · Investors",
     desc:"High-level board-ready summary: batch performance vs. previous period, revenue model projection, top verticals, quality rating and strategic recommendations.",
@@ -26,7 +26,7 @@ export const getReportDefs = (T) => [
   {
     id:"risk_screening",
     category:"internal",
-    icon:"⚠️",
+    icon:"",
     label:"Risk Screening Report",
     audience:"Risk & Compliance team",
     desc:"High-risk lead identification: DTI >50%, single-name leads, unverified emails, inconsistent financial data. Flag before sending to regulated partners.",
@@ -38,7 +38,7 @@ export const getReportDefs = (T) => [
   {
     id:"vertical_personal",
     category:"vertical",
-    icon:"💳",
+    icon:"",
     label:"Personal Loans Batch",
     audience:"Consumer finance · BNPL · Neobanks",
     desc:"Personal expenses, lifestyle, education and general consumer credit leads. Employment mix, income profile, DTI and top purposes filtered to this vertical.",
@@ -49,7 +49,7 @@ export const getReportDefs = (T) => [
   {
     id:"vertical_reform",
     category:"vertical",
-    icon:"🔨",
+    icon:"",
     label:"Home Reform Batch",
     audience:"Reform financing · Home improvement lenders · Consumer banks",
     desc:"Home improvement leads. Unsecured personal credit — no appraisal needed. 83% request <€15k. 42% homeowners. Faster closing than mortgage. Different product entirely.",
@@ -60,7 +60,7 @@ export const getReportDefs = (T) => [
   {
     id:"vertical_mortgage",
     category:"vertical",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage / Refinance Batch",
     audience:"Mortgage brokers · Banks · Intermediarios hipotecarios",
     desc:"Refinancing leads. Secured product tied to property valuation. 82% have existing loans — confirmed refinance intent. Avg term 67 months. LCCI regulated.",
@@ -71,7 +71,7 @@ export const getReportDefs = (T) => [
   {
     id:"vertical_vehicle_unsecured",
     category:"vertical",
-    icon:"🚗",
+    icon:"",
     label:"Vehicle — Personal Credit Batch",
     audience:"Consumer finance · Cetelem · Cofidis · Bank personal loan desks",
     desc:"Vehicle purchase leads financed via unsecured personal credit (loan ≤€15k, term ≤60 months). Vehicle is the destination — underwriting is on income/DTI, not vehicle value. ~14 leads.",
@@ -82,7 +82,7 @@ export const getReportDefs = (T) => [
   {
     id:"vertical_vehicle_secured",
     category:"vertical",
-    icon:"🔐",
+    icon:"",
     label:"Vehicle — Secured Credit Batch",
     audience:"ALD Automotive · Arval · Specialized auto lenders · Dealers with secured financing",
     desc:"Vehicle-secured credit leads (loan >€15k or term >60 months). Vehicle is the collateral — partner must handle valuation (ITV/tasación) and registration (reserva de dominio). ~6 leads.",
@@ -94,7 +94,7 @@ export const getReportDefs = (T) => [
   {
     id:"partner_mortgage",
     category:"partner",
-    icon:"🏦",
+    icon:"",
     label:"Mortgage Partner Pack",
     audience:"Banks · Mortgage brokers · Hipotecas.com · iAhorro",
     desc:"Curated for mortgage brokers and banks. Refinancing leads with confirmed intent (82% existing loans), homeowner profile, avg loan €14.9k, LCCI compliance context. No internal data.",
@@ -105,7 +105,7 @@ export const getReportDefs = (T) => [
   {
     id:"partner_auto",
     category:"partner",
-    icon:"🔑",
+    icon:"",
     label:"Auto Secured Credit — Partner Pack",
     audience:"ALD · Arval · LeasePlan · Specialized auto lenders",
     desc:"Vehicle-secured credit leads only (loan >€15k or term >60 months). Includes income, employment and loan profile. Clean external format — no internal ops data.",
@@ -116,7 +116,7 @@ export const getReportDefs = (T) => [
   {
     id:"partner_neobank",
     category:"partner",
-    icon:"📱",
+    icon:"",
     label:"Neobank / BNPL Pack",
     audience:"Revolut · Cofidis · Vivus · WiZink",
     desc:"Personal loans vertical optimized for neobank and BNPL partners. Focus on digital-first profile, younger segment, income <€2k — high-volume plays.",
@@ -128,7 +128,7 @@ export const getReportDefs = (T) => [
   {
     id:"premium_bc",
     category:"premium",
-    icon:"⭐",
+    icon:"",
     label:"Premium BC Segment",
     audience:"Tier-1 partners · Fintonic · Banks · Comparators",
     desc:"Bank Connected only, income >€2,000 and loan >€5,000. Highest conversion potential in the batch. Avg income €2.7k · Avg loan €15k.",
@@ -139,7 +139,7 @@ export const getReportDefs = (T) => [
   {
     id:"retired_segment",
     category:"premium",
-    icon:"🧓",
+    icon:"",
     label:"Retired Segment",
     audience:"Consumer finance · Pension credit specialists",
     desc:"Retired profile leads. Stable pension income, avg €2,051/mo. Low DTI risk. Specific partner type: personal credit with pension collateral.",
@@ -151,7 +151,7 @@ export const getReportDefs = (T) => [
   {
     id:"generic_partner",
     category:"external",
-    icon:"🤝",
+    icon:"",
     label:"Generic Partner Overview",
     audience:"Any new or prospective partner",
     desc:"Clean external overview: volume, quality badge, loan purposes and financial profile. Zero internal ops data. Safe to share with any external party.",
@@ -381,7 +381,7 @@ function makeHeader(reportLabel, dateFrom, dateTo, today, badgeHTML="") {
 }
 
 function makePrintBtn() {
-  return `<div class="no-print"><button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button></div>`;
+  return `<div class="no-print"><button class="btn-print" onclick="window.print()">Print / Save as PDF</button></div>`;
 }
 
 function makeKPIGrid(items) {
@@ -432,15 +432,15 @@ export function makeReport(reportDef, data) {
   const isRisk      = reportDef.id === "risk_screening";
   const isExec      = reportDef.id === "exec_summary";
 
-  const badgeHTML = isInternal ? `<span class="badge badge-int">🔒 Internal</span>` :
-                    isPremium  ? `<span class="badge badge-prem">⭐ Premium</span>` :
-                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">⚠️ Risk &amp; Compliance</span>` :
+  const badgeHTML = isInternal ? `<span class="badge badge-int">Internal</span>` :
+                    isPremium  ? `<span class="badge badge-prem">Premium</span>` :
+                    isRisk     ? `<span class="badge badge-int" style="background:#FEE2E2;color:#7F1D1D;border-color:#FECACA">Risk &amp; Compliance</span>` :
                                  `<span class="badge badge-ext">Partner Distribution</span>`;
 
   const intBanner = isRisk
-    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;">⚠️ <strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
+    ? `<div class="int-banner" style="background:#FEF2F2;border-color:#FECACA;color:#7F1D1D;"><strong>Risk & Compliance — Internal only.</strong> Contains flagged leads with high-risk indicators. Do not share externally.</div>`
     : isInternal
-    ? `<div class="int-banner">🔒 <strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
+    ? `<div class="int-banner"><strong>Internal use only — Ops & Management.</strong> Not for distribution to leads, partners or external stakeholders.</div>`
     : "";
 
   const kpiItems = isPremium && reportDef.id==="premium_bc"
@@ -608,8 +608,13 @@ export function makeReport(reportDef, data) {
     </div>
   </div>` : "";
 
+  // M-06: No-cache and no-index meta tags prevent the report from being stored
+  // in browser history, print queues, or indexed by search engines.
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
-<title>CreditCheck — ${reportDef.label} — ${today}</title>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>CreditCheck — ${reportDef.label} — ${today} [CONFIDENTIAL]</title>
 <style>${REPORT_CSS}</style>
 </head><body><div class="page">
   ${intBanner}
@@ -631,7 +636,7 @@ export function makeReport(reportDef, data) {
   ${dtiSection}
   ${opts.vertical==="mortgage" ? `
   <div class="section">
-    <div class="section-title">⚖️ Regulatory Context</div>
+    <div class="section-title">Regulatory Context</div>
     <div style="background:#FEF9EC;border:1px solid #FDE68A;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#92400E;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Regulatory framework</div>
@@ -645,7 +650,7 @@ export function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_secured" ? `
   <div class="section">
-    <div class="section-title">⚠️ Product & Heuristic Note</div>
+    <div class="section-title">Product & Heuristic Note</div>
     <div style="background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:18px 22px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;">
         <div><div style="font-size:9px;font-weight:800;color:#9F1239;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Segmentation method</div>
@@ -657,7 +662,7 @@ export function makeReport(reportDef, data) {
   </div>` : ""}
   ${opts.vertical==="vehicle_unsecured" ? `
   <div class="section">
-    <div class="section-title">ℹ️ Product Classification Note</div>
+    <div class="section-title">Product Classification Note</div>
     <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:14px 20px;font-size:12px;color:#78350F;line-height:1.7;">
       <strong>Segmentation based on heuristic — no explicit field in source data.</strong>
       Leads classified as unsecured personal credit (loan ≤€15k AND term ≤60 months).
@@ -668,7 +673,7 @@ export function makeReport(reportDef, data) {
   ${isInternal||isVertical||isSegment||isPartner||isPremium ? `<div class="section"><div class="two-col">${domainSection}${residSection}</div></div>` : ""}
   <div class="footer">
     <span>CreditCheck by Clovr Labs · ${today}</span>
-    <span>${isInternal||isRisk?"🔒 Internal — Confidential":isPremium?"⭐ Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
+    <span>${isInternal||isRisk?"Internal — Confidential":isPremium?"Premium Segment — Partner Distribution":"Lead Batch Report — Partner Distribution"}</span>
   </div>
 </div></body></html>`;
 

@@ -3,19 +3,38 @@
 // Deduplicates by email, preferring better status and higher score.
 import { processMortgageRows } from './mortgageParser.js';
 
+// Excluded email domains/patterns loaded from env var (VITE_EXCLUDED_EMAIL_DOMAINS).
+// Format: comma-separated domain suffixes, e.g. "@clovrlabs.io,@staging.example.com"
+// Falls back to the internal defaults when the env var is not set.
+const _envExcludedDomains = (import.meta.env.VITE_EXCLUDED_EMAIL_DOMAINS || '')
+  .split(',')
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
+
+const _defaultExcludedDomains = ['@clovrlabs.']; // fixed typo: removed @clorvrlabs.
+
+// Generic test-address patterns (not tied to any real person or domain)
+const _testPatterns = [
+  /^test[-_+].*@/i,
+  /^.*[-_+]test@/i,
+  /^(asd|demo|sample|fake|noreply)@/i,
+];
+
+// Specific addresses that are known test fixtures
+const _testAddresses = new Set(['test@test.com', 'asd@asda.com', 'a@xn--6ca.com']);
+
 export function isTestEmail(email) {
   if (!email) return true;
-  const e = email.toLowerCase();
-  return (
-    e.includes("@clovrlabs.") ||
-    e.includes("@clorvrlabs.") ||
-    e === "test@test.com" ||
-    e === "asd@asda.com" ||
-    e === "ferran@test.com" ||
-    e === "f@test.com" ||
-    e === "a@xn--6ca.com" ||
-    /^(test|asd|a|f)@/.test(e)
-  );
+  const e = email.toLowerCase().trim();
+  // Check env-configured excluded domains first
+  if (_envExcludedDomains.some(d => e.includes(d))) return true;
+  // Check built-in defaults
+  if (_defaultExcludedDomains.some(d => e.includes(d))) return true;
+  // Check known test addresses
+  if (_testAddresses.has(e)) return true;
+  // Check generic test patterns
+  if (_testPatterns.some(re => re.test(e))) return true;
+  return false;
 }
 
 export function processRows(rows, headers) {
