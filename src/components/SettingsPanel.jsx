@@ -26,9 +26,9 @@ function ToggleRow({ label, desc, checked, onChange, T }) {
         {desc && <div style={{ fontSize:11, color:T.muted, marginTop:1 }}>{desc}</div>}
       </div>
       <div onClick={() => onChange(!checked)} style={{
-        width:36, height:20, borderRadius:10, background:checked ? "#005EFF" : T.surface3,
+        width:36, height:20, borderRadius:10, background:checked ? T.blue : T.surface3,
         position:"relative", cursor:"pointer", flexShrink:0, transition:"background .2s",
-        border:`1px solid ${checked ? "#005EFF" : T.border}`,
+        border:`1px solid ${checked ? T.blue : T.border}`,
       }}>
         <div style={{
           position:"absolute", top:2, left: checked ? 17 : 2,
@@ -189,7 +189,7 @@ export default function SettingsPanel({ settings, onSave, onClose }) {
           }}>Cancel</button>
           <button onClick={handleSave} style={{
             padding:"8px 18px", borderRadius:7, border:"none",
-            background:"#005EFF", color:"#fff", fontSize:12, fontWeight:700,
+            background:T.blue, color:"#fff", fontSize:12, fontWeight:700,
             cursor:"pointer", fontFamily:"'Geist',sans-serif",
           }}>Save changes</button>
         </div>

@@ -1,6 +1,22 @@
 import React, { useState, useRef, useCallback } from 'react';
+import * as XLSX from 'xlsx';                          // M-01: local package, no CDN loader
 import { useTheme } from '../context/ThemeContext.jsx';
-import { processRows } from '../utils/xlsxParser.js';
+import { parseWorkbook } from '../utils/xlsxParser.js';
+import { auditLog } from '../utils/auditLog.js';
+
+// H-01: Upload guardrails
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_ROWS       = 5_000;
+
+// H-01: XLSX/XLS magic bytes (ZIP PK header and legacy BIFF CFB header)
+function hasValidMagicBytes(buf) {
+  const b = new Uint8Array(buf, 0, 8);
+  // XLSX = ZIP: PK\x03\x04
+  if (b[0] === 0x50 && b[1] === 0x4B && b[2] === 0x03 && b[3] === 0x04) return true;
+  // XLS = Compound Document: \xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1
+  if (b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0) return true;
+  return false;
+}
 
 export default function UploadZone({ onData }) {
   const { T } = useTheme();
@@ -13,23 +29,52 @@ export default function UploadZone({ onData }) {
     if (!file) return;
     setStatus('loading'); setMsg('');
     try {
+      // H-01: File size guard — prevents zip-bomb memory exhaustion
+      if (file.size > MAX_FILE_BYTES) {
+        throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed: 10 MB.`);
+      }
+
       const buf = await file.arrayBuffer();
-      const XLSX = await new Promise((res, rej) => {
-        if (window.XLSX) return res(window.XLSX);
-        const s = Object.assign(document.createElement('script'), {
-          src: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-          onload: () => res(window.XLSX), onerror: rej,
-        });
-        document.head.appendChild(s);
-      });
+
+      // H-01: Magic-byte validation — reject non-XLSX/XLS disguised files
+      if (!hasValidMagicBytes(buf)) {
+        throw new Error('Invalid file format. Only .xlsx and .xls files are accepted.');
+      }
+
       const wb = XLSX.read(buf, { type: 'array' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
-      if (rows.length < 2) throw new Error('Empty file');
-      const d = processRows(rows.slice(1), rows[0].map(h => String(h || '')));
-      const bc = d['Bank Connected'].length, fs = d['Form Submitted'].length, ic = (d['Incomplete'] || []).length;
-      if (bc + fs === 0) throw new Error('No leads found. Check column headers match expected format.');
-      setMsg(`${bc} Bank Connected · ${fs} Form Submitted · ${ic} Incomplete`);
-      setStatus('ok'); onData(d);
+      const { creditData, mortgageData } = parseWorkbook(wb, XLSX);
+
+      const bc  = creditData['Bank Connected'].length;
+      const fs  = creditData['Form Submitted'].length;
+      const ic  = (creditData['Incomplete'] || []).length;
+      const mAll = [
+        ...(mortgageData['Bank Connected'] || []),
+        ...(mortgageData['Form Submitted'] || []),
+        ...(mortgageData['Incomplete']     || []),
+      ].length;
+
+      const totalRows = bc + fs + ic;
+      const truncated = totalRows > MAX_ROWS;
+
+      if (bc + fs === 0 && mAll === 0) {
+        throw new Error('No leads found. Check column headers match expected format.');
+      }
+
+      const creditLabel   = `${Math.min(totalRows, MAX_ROWS).toLocaleString()} credit lead${totalRows !== 1 ? 's' : ''}`;
+      const mortgageLabel = `${mAll.toLocaleString()} mortgage lead${mAll !== 1 ? 's' : ''}`;
+      const suffix        = truncated ? ` (capped at ${MAX_ROWS} rows)` : '';
+      setMsg(`${creditLabel} · ${mortgageLabel}${suffix}`);
+      setStatus('ok');
+
+      // M-04: Audit trail for data uploads (no PII in metadata)
+      auditLog('data_upload', {
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+        fileSizeKB: Math.round(file.size / 1024),
+        rowCount: totalRows + mAll,
+        truncated,
+      });
+
+      onData({ creditData, mortgageData });
     } catch (e) { setStatus('err'); setMsg(String(e.message || e)); }
   }, [onData]);
 
@@ -55,11 +100,11 @@ export default function UploadZone({ onData }) {
           : <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
       </div>
       <div style={{ fontSize: 12, fontWeight: 600, color: status === 'err' ? T.red : status === 'ok' ? T.green : T.textSub, fontFamily: "'Geist',sans-serif" }}>
-        {status === 'idle' && 'Drop XLSX here or click to browse'}
+        {status === 'idle'    && 'Drop XLSX here or click to browse'}
         {status === 'loading' && 'Processing…'}
         {(status === 'ok' || status === 'err') && msg}
       </div>
-      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore & Pipedrive formats · deduplicates by email</div>}
+      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore · Mortgage · Pipedrive formats · deduplicates by email</div>}
     </div>
   );
 }
