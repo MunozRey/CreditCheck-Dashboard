@@ -1,6 +1,7 @@
 // ─── XLSX PARSER ─────────────────────────────────────────────────────────────
 // Supports both CreditScore/Rasmus format and Pipedrive format.
 // Deduplicates by email, preferring better status and higher score.
+import { processMortgageRows } from './mortgageParser.js';
 
 export function isTestEmail(email) {
   if (!email) return true;
@@ -168,4 +169,34 @@ export function processRows(rows, headers) {
     for (const {cat,lead} of Object.values(seen)) res[cat].push(lead);
     return res;
   }
+}
+
+// ─── WORKBOOK PARSER ─────────────────────────────────────────────────────────
+// Searches for sheets by name (case-insensitive).
+// Returns { creditData, mortgageData }.
+export function parseWorkbook(wb, XLSX) {
+  const names = wb.SheetNames;
+  const lower = names.map(n => n.toLowerCase().trim());
+
+  const creditIdx   = lower.findIndex(n => n.includes("creditscorerequests"));
+  const mortgageIdx = lower.findIndex(n => n.includes("mortgagerequests"));
+
+  // Credit: use named sheet if found, otherwise fall back to first sheet
+  const creditSheet = names[creditIdx !== -1 ? creditIdx : 0];
+  const creditRaw   = XLSX.utils.sheet_to_json(wb.Sheets[creditSheet], { header: 1, defval: "" });
+  const creditData  = creditRaw.length >= 2
+    ? processRows(creditRaw.slice(1), creditRaw[0].map(h => String(h || "")))
+    : { "Bank Connected": [], "Form Submitted": [], "Incomplete": [] };
+
+  // Mortgage: only if the named sheet exists
+  let mortgageData = { "Bank Connected": [], "Form Submitted": [], "Incomplete": [] };
+  if (mortgageIdx !== -1) {
+    const mortgageSheet = names[mortgageIdx];
+    const mortgageRaw   = XLSX.utils.sheet_to_json(wb.Sheets[mortgageSheet], { header: 1, defval: "" });
+    if (mortgageRaw.length >= 2) {
+      mortgageData = processMortgageRows(mortgageRaw.slice(1), mortgageRaw[0].map(h => String(h || "")));
+    }
+  }
+
+  return { creditData, mortgageData };
 }

@@ -39,7 +39,7 @@ export const VERTICALS_DEF = {
     insightNote:"83% of reform leads request <€15k — typical unsecured personal credit range. Only 13 leads request >€15k where secured products might apply.",
   },
   mortgage: {
-    id:"mortgage", label:"Mortgage / Refinance", icon:"🏦",
+    id:"mortgage", label:"Refinance", icon:"🏦",
     color:"#6D28D9", lightBg:T.surface3, border:"rgba(139,92,246,0.3)",
     purposes:["refinance"],
     desc:"Mortgage refinancing — tied to property valuation, regulated product",

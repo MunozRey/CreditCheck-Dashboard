@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { processRows } from '../utils/xlsxParser.js';
+import { parseWorkbook } from '../utils/xlsxParser.js';
 
 export default function UploadZone({ onData }) {
   const { T } = useTheme();
@@ -23,13 +23,26 @@ export default function UploadZone({ onData }) {
         document.head.appendChild(s);
       });
       const wb = XLSX.read(buf, { type: 'array' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
-      if (rows.length < 2) throw new Error('Empty file');
-      const d = processRows(rows.slice(1), rows[0].map(h => String(h || '')));
-      const bc = d['Bank Connected'].length, fs = d['Form Submitted'].length, ic = (d['Incomplete'] || []).length;
-      if (bc + fs === 0) throw new Error('No leads found. Check column headers match expected format.');
-      setMsg(`${bc} Bank Connected · ${fs} Form Submitted · ${ic} Incomplete`);
-      setStatus('ok'); onData(d);
+      const { creditData, mortgageData } = parseWorkbook(wb, XLSX);
+
+      const bc  = creditData['Bank Connected'].length;
+      const fs  = creditData['Form Submitted'].length;
+      const ic  = (creditData['Incomplete'] || []).length;
+      const mAll = [
+        ...(mortgageData['Bank Connected'] || []),
+        ...(mortgageData['Form Submitted'] || []),
+        ...(mortgageData['Incomplete']     || []),
+      ].length;
+
+      if (bc + fs === 0 && mAll === 0) {
+        throw new Error('No leads found. Check column headers match expected format.');
+      }
+
+      const creditLabel   = `${(bc + fs + ic).toLocaleString()} credit lead${(bc + fs + ic) !== 1 ? 's' : ''}`;
+      const mortgageLabel = `${mAll.toLocaleString()} mortgage lead${mAll !== 1 ? 's' : ''}`;
+      setMsg(`${creditLabel} · ${mortgageLabel}`);
+      setStatus('ok');
+      onData({ creditData, mortgageData });
     } catch (e) { setStatus('err'); setMsg(String(e.message || e)); }
   }, [onData]);
 
@@ -59,7 +72,7 @@ export default function UploadZone({ onData }) {
         {status === 'loading' && 'Processing…'}
         {(status === 'ok' || status === 'err') && msg}
       </div>
-      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore & Pipedrive formats · deduplicates by email</div>}
+      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore · Mortgage · Pipedrive formats · deduplicates by email</div>}
     </div>
   );
 }
