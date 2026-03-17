@@ -35,22 +35,13 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const CAT_STYLE = getCatStyle(T);
 
   const [cat, setCat]               = useState(() => readPrefs().tableCategory || "Bank Connected");
-  const [search, setSearch]         = useState("");
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
   const [tableOpen, setTableOpen]   = useState(true);
-  const [sortBy, setSortBy]         = useState(() => readPrefs().tableSort || defaultSort || "created");
-  const [starOnly, setStarOnly]     = useState(false);
-  const [purposeFilter, setPurposeFilter]   = useState("all");
-  const [empFilter, setEmpFilter]           = useState("all");
-  const [countryFilter, setCountryFilter]   = useState("all");
-  const [verifiedFilter, setVerifiedFilter] = useState("all");
-  const [visibleCols, setVisibleCols]       = useState(() => {
+  const [visibleCols, setVisibleCols] = useState(() => {
     const prefs = readPrefs();
     return Array.isArray(prefs.visibleColumns) ? new Set(prefs.visibleColumns) : DEFAULT_VISIBLE;
   });
-  const [showColMenu, setShowColMenu]       = useState(false);
-  const [selectedLead, setSelectedLead]     = useState(null);
+  const [showColMenu, setShowColMenu] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
   const colMenuRef = useRef(null);
 
   // ── Persist preferences on change ────────────────────────────────────────
@@ -80,7 +71,7 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     sortBy, toggleSort, sortIndicator,
     allPurposes, allCountries, allEmp,
     filtered, hasFilters, clearFilters,
-  } = useLeadFilters({ allLeads, starredEmails, defaultSort });
+  } = useLeadFilters({ allLeads, starredEmails, defaultSort: readPrefs().tableSort || defaultSort || "created" });
 
   const toggleCol = (key) => {
     setVisibleCols(prev => {
