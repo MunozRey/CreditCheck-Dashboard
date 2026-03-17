@@ -44,9 +44,8 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const [selectedLead, setSelectedLead] = useState(null);
   const colMenuRef = useRef(null);
 
-  // ── Persist preferences on change ────────────────────────────────────────
+  // ── Persist category + columns (declared before their deps are in scope) ──
   useEffect(() => { savePrefs({ tableCategory: cat }); }, [cat]);
-  useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]);
   useEffect(() => { savePrefs({ visibleColumns: [...visibleCols] }); }, [visibleCols]);
 
   // Close column menu on outside click
@@ -72,6 +71,9 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     allPurposes, allCountries, allEmp,
     filtered, hasFilters, clearFilters,
   } = useLeadFilters({ allLeads, starredEmails, defaultSort: readPrefs().tableSort || defaultSort || "created" });
+
+  // sortBy comes from useLeadFilters — this effect MUST be after the hook call
+  useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]); // eslint-disable-line react-hooks/rules-of-hooks
 
   const toggleCol = (key) => {
     setVisibleCols(prev => {
