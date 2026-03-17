@@ -8,6 +8,7 @@ import ExportModal from './components/ExportModal.jsx';
 import KeyboardHelp from './components/KeyboardHelp.jsx';
 import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
+import MortgageDashboard from './components/MortgageDashboard.jsx';
 
 import LeadsTab        from './tabs/LeadsTab.jsx';
 import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
@@ -25,7 +26,6 @@ import fetchLiveData     from './utils/fetchLiveData.js';
 import { loadGIS, createTokenClient, requestToken, fetchGoogleUserInfo } from './utils/googleAuth.js';
 import { newPartner }    from './utils/revenue.js';
 import { fmtAgo }        from './utils/format.js';
-import { scoreLead }     from './utils/scoring.js';
 import { T as THEME_T } from './constants/themes.js';
 
 // Applies settings accent-color overrides onto the mutable T proxy.
@@ -53,10 +53,14 @@ const MAIN_TABS = [
   { id:"partners",  label:"Partners" },
 ];
 
+const EMPTY_MORTGAGE = { "Bank Connected": [], "Form Submitted": [], "Incomplete": [] };
+
 function AppInner() {
   const { T, theme, toggleTheme } = useTheme();
 
   const [data, setData]                       = useState(DEFAULT_DATA);
+  const [mortgageData, setMortgageData]       = useState(EMPTY_MORTGAGE);
+  const [dashboard, setDashboard]             = useState("credit");
   const [tab, setTab]                         = useState("leads");
   const [showUpload, setUpload]               = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -67,16 +71,15 @@ function AppInner() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const saveSettings = useCallback((next) => {
-    // Patch T synchronously so the next React render picks up new colors
     patchAccentColors(next);
     setSettings(next);
     try { window.storage.set("cc_settings", JSON.stringify(next)).catch(()=>{}); } catch(_){}
   }, []);
 
-  // Re-apply overrides whenever the theme toggles (applyTheme resets T to defaults)
+  // Re-apply overrides whenever the theme toggles
   useEffect(() => { patchAccentColors(settings); }, [theme]); // eslint-disable-line
 
-  // ── Starred leads — persisted by email ───────────────────────────────────
+  // ── Starred leads ─────────────────────────────────────────────────────────
   const [starredEmails, setStarredEmails] = useState(new Set());
 
   const toggleStar = useCallback((email) => {
@@ -84,14 +87,10 @@ function AppInner() {
     setStarredEmails(prev => {
       const next = new Set(prev);
       if (next.has(email)) next.delete(email); else next.add(email);
-      // Persist to storage
       try { window.storage.set("cc_starred", JSON.stringify([...next])).catch(()=>{}); } catch(_){}
       return next;
     });
   }, []);
-
-  // Load starred from storage on mount (alongside the existing storage init useEffect)
-  // This is handled in the existing storage useEffect below via cc_starred key.
 
   // ── Global date range filter ──────────────────────────────────────────────
   const [drFrom, setDrFrom] = useState("");
@@ -118,44 +117,32 @@ function AppInner() {
     const id = setInterval(() => setNextRefreshMins(m => Math.max(0, m - 1)), 60000);
     return () => clearInterval(id);
   }, []);
-  // reset countdown when a fetch completes
   const resetCountdown = useCallback(() => setNextRefreshMins(60), []);
 
   // ── Google OAuth 2.0 state (token in memory only — never persisted) ──────
   const GOOGLE_CLIENT_ID           = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
   const [googleToken, setGoogleToken]   = useState(null);
   const [googleUser,  setGoogleUser]    = useState(null); // { email, name, picture }
-  // Use a ref so runFetch always reads the latest token without stale closures
   const googleTokenRef             = useRef(null);
   const tokenClientRef             = useRef(null);
   const tokenRefreshTimerRef       = useRef(null);
 
-  // Called on successful OAuth grant
   const handleTokenSuccess = useCallback((response) => {
     const token     = response.access_token;
-    const expiresIn = Number(response.expires_in) || 3600; // seconds
-
+    const expiresIn = Number(response.expires_in) || 3600;
     googleTokenRef.current = token;
     setGoogleToken(token);
-
-    // Auto-refresh 5 minutes before expiry
     clearTimeout(tokenRefreshTimerRef.current);
     tokenRefreshTimerRef.current = setTimeout(() => {
       if (tokenClientRef.current) requestToken(tokenClientRef.current, true);
     }, Math.max(0, (expiresIn - 300) * 1000));
-
-    // Fetch user profile for display (non-critical — ignore errors)
     fetchGoogleUserInfo(token)
       .then(info => setGoogleUser({ email: info.email, name: info.name, picture: info.picture }))
       .catch(() => {});
-
-    // Immediately kick off a data fetch with the new token
-    // (runFetch reads googleTokenRef.current so no stale-closure issue)
-    lastFetchRef.current = 0; // reset rate-limit so this goes through
+    lastFetchRef.current = 0;
     runFetchCore(true, token);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load GIS and create the token client once on mount
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
     loadGIS()
@@ -171,7 +158,6 @@ function AppInner() {
   }, [GOOGLE_CLIENT_ID, handleTokenSuccess]);
 
   // ── Live data fetch state ─────────────────────────────────────────────────
-  // liveStatus: null = not yet tried | {ok:true, at:Date} | {ok:false, err:string, isCors:bool, isUnauthorized:bool}
   const [liveStatus, setLiveStatus] = useState(null);
   const [fetching, setFetching]     = useState(false);
   const userUploadedRef             = useRef(false);
@@ -224,7 +210,6 @@ function AppInner() {
   const [storageReady, setStorageReady]     = useState(false);
 
   useEffect(() => {
-    // 3-second fallback: if window.storage hangs, unblock the UI anyway
     const fallback = setTimeout(() => setStorageReady(true), 3000);
     (async () => {
       try {
@@ -255,6 +240,13 @@ function AppInner() {
           if (parsed && typeof parsed === "object") setSettings(s => ({ ...s, ...parsed }));
         }
       } catch(_) {}
+      try {
+        const r5 = await window.storage.get("cc_mortgage_data");
+        if (r5?.value) {
+          const parsed = JSON.parse(r5.value);
+          if (parsed && typeof parsed === "object") setMortgageData(parsed);
+        }
+      } catch(_) {}
       clearTimeout(fallback);
       setStorageReady(true);
     })();
@@ -270,7 +262,12 @@ function AppInner() {
     window.storage.set("cc_month_data", JSON.stringify(partnerMonthData)).catch(() => {});
   }, [partnerMonthData, storageReady]);
 
-  // ── Derived stats (use filteredData for KPI strip) ───────────────────────
+  useEffect(() => {
+    if (!storageReady) return;
+    window.storage.set("cc_mortgage_data", JSON.stringify(mortgageData)).catch(() => {});
+  }, [mortgageData, storageReady]);
+
+  // ── Derived stats ─────────────────────────────────────────────────────────
   const bc         = (filteredData["Bank Connected"] || []).length;
   const fs         = (filteredData["Form Submitted"] || []).length;
   const incomplete = (filteredData["Incomplete"]     || []).length;
@@ -283,35 +280,17 @@ function AppInner() {
   const staleDays  = snapshotDate ? Math.floor((new Date()-new Date(snapshotDate))/86400000) : null;
   const staleHours = snapshotDate ? Math.floor((new Date()-new Date(snapshotDate))/3600000)  : null;
 
-  // Avg lead score across enriched active leads (BC + FS only)
-  const avgScore = useMemo(() => {
-    const active = [...(filteredData["Bank Connected"]||[]), ...(filteredData["Form Submitted"]||[])];
-    const enriched = active.filter(r => r.income != null);
-    if (!enriched.length) return null;
-    return Math.round(enriched.reduce((s, r) => s + scoreLead(r), 0) / enriched.length);
-  }, [filteredData]);
+  // Mortgage lead count for badge
+  const mortgageCount = useMemo(() => [
+    ...(mortgageData["Bank Connected"]  || []),
+    ...(mortgageData["Form Submitted"]  || []),
+    ...(mortgageData["Incomplete"]      || []),
+  ].length, [mortgageData]);
 
-  // ── Daily digest stats ────────────────────────────────────────────────────
-  const digestStats = useMemo(() => {
-    const allLeads = [
-      ...(data["Bank Connected"] || []),
-      ...(data["Form Submitted"] || []),
-      ...(data["Incomplete"] || []),
-    ];
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const weekAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-
-    const todayCount = allLeads.filter(r => (r.created || "").slice(0, 10) === todayStr).length;
-    const yesterdayCount = allLeads.filter(r => (r.created || "").slice(0, 10) === yesterdayStr).length;
-    const weekCount = allLeads.filter(r => (r.created || "").slice(0, 10) >= weekAgoStr).length;
-
-    return { todayCount, yesterdayCount, weekCount, todayStr };
-  }, [data]);
-
-  const onData = useCallback(d => {
+  const onData = useCallback(({ creditData, mortgageData: md }) => {
     userUploadedRef.current = true;
-    setData(d);
+    setData(creditData);
+    setMortgageData(md);
     setUpload(false);
   }, []);
 
@@ -333,6 +312,8 @@ function AppInner() {
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleTheme]);
 
+  const isMortgage = dashboard === "mortgages";
+
   return (
     <div key={theme} style={{ fontFamily:"'Geist',sans-serif", background:T.bg, minHeight:"100vh", color:T.text }}>
 
@@ -340,8 +321,8 @@ function AppInner() {
       <div data-cc="navbar" style={{ background:T.bg, position:"sticky", top:0, zIndex:100, borderBottom:`1px solid ${T.border}` }}>
         <div style={{ padding:"0 24px", height:54, display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto", width:"100%" }}>
 
-          {/* Logo — official CreditChecker SVG or custom title */}
-          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0, marginRight:12 }}>
+          {/* Logo */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0, marginRight:8 }}>
             {settings.showOfficialLogo ? (
               <CreditCheckerLogo height={26} color={T.isDark ? "#fff" : T.navy} />
             ) : (
@@ -360,31 +341,62 @@ function AppInner() {
             )}
           </div>
 
-          {/* Tab nav — filtered by settings visibility */}
-          <nav data-cc="tabbar" style={{ display:"flex", gap:0, flex:1, height:"100%", alignItems:"stretch" }}>
-            {MAIN_TABS.filter(t => settings[`tab${t.id.charAt(0).toUpperCase() + t.id.slice(1)}`] !== false).map(t => {
-              const active = tab === t.id;
+          {/* Dashboard switcher pills */}
+          <div style={{ display:"flex", gap:3, marginRight:8, background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}`, flexShrink:0 }}>
+            {[
+              { id:"credit",    label:"CreditCheck" },
+              { id:"mortgages", label:"Hipotecas"   },
+            ].map(d => {
+              const active = dashboard === d.id;
               return (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{
-                  padding:"0 14px", border:"none", background:"none", cursor:"pointer",
-                  fontSize:11, fontWeight:active?600:400, letterSpacing:0.1,
-                  color:active?T.text:T.muted,
-                  borderBottom:`1.5px solid ${active?T.blue:"transparent"}`,
-                  transition:"all .12s", fontFamily:"'Geist',sans-serif", whiteSpace:"nowrap",
-                }}
-                onMouseEnter={e=>{ if(!active) e.currentTarget.style.color=T.textSub; }}
-                onMouseLeave={e=>{ if(!active) e.currentTarget.style.color=T.muted; }}>
-                  {t.label}
+                <button key={d.id} onClick={() => setDashboard(d.id)} style={{
+                  padding:"3px 12px", borderRadius:6, border:"none", cursor:"pointer",
+                  background: active ? T.surface : "transparent",
+                  color: active ? T.text : T.muted,
+                  fontWeight: active ? 600 : 400, fontSize:11,
+                  boxShadow: active ? `0 1px 4px ${T.border}` : "none",
+                  fontFamily:"'Geist',sans-serif", position:"relative",
+                  transition:"all .15s", display:"flex", alignItems:"center", gap:5,
+                }}>
+                  {d.label}
+                  {d.id === "mortgages" && mortgageCount > 0 && (
+                    <span style={{ background:T.blue, color:"#fff", borderRadius:9999, fontSize:9, padding:"0px 5px", fontWeight:700, lineHeight:"16px" }}>
+                      {mortgageCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
-          </nav>
+          </div>
+
+          {/* Tab nav — only shown in credit mode */}
+          {!isMortgage && (
+            <nav data-cc="tabbar" style={{ display:"flex", gap:0, flex:1, height:"100%", alignItems:"stretch" }}>
+              {MAIN_TABS.filter(t => settings[`tab${t.id.charAt(0).toUpperCase() + t.id.slice(1)}`] !== false).map(t => {
+                const active = tab === t.id;
+                return (
+                  <button key={t.id} onClick={() => setTab(t.id)} style={{
+                    padding:"0 14px", border:"none", background:"none", cursor:"pointer",
+                    fontSize:11, fontWeight:active?600:400, letterSpacing:0.1,
+                    color:active?T.text:T.muted,
+                    borderBottom:`1.5px solid ${active?T.blue:"transparent"}`,
+                    transition:"all .12s", fontFamily:"'Geist',sans-serif", whiteSpace:"nowrap",
+                  }}
+                  onMouseEnter={e=>{ if(!active) e.currentTarget.style.color=T.textSub; }}
+                  onMouseLeave={e=>{ if(!active) e.currentTarget.style.color=T.muted; }}>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+          {isMortgage && <div style={{ flex:1 }} />}
 
           {/* Right controls */}
           <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
 
-            {/* Live status indicator */}
-            {(() => {
+            {/* Live status indicator — only in credit mode */}
+            {!isMortgage && (() => {
               const dot = (color) => <div style={{ width:6, height:6, borderRadius:"50%", background:color, boxShadow:`0 0 7px ${color}`, flexShrink:0 }}/>;
               const wrap = (content) => (
                 <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:6 }}>
@@ -493,165 +505,120 @@ function AppInner() {
         </div>
       )}
 
-      {/* ── GLOBAL DATE FILTER BAR ── */}
-      {settings.showDateRangeBar !== false && <div data-cc="date-range-bar" style={{ background:T.surface2, borderBottom:`1px solid ${T.border}`, padding:"7px 24px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto" }}>
-          <span style={{ fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", flexShrink:0 }}>Date Range</span>
-          <input type="date" value={drFrom} onChange={e => setDrFrom(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
-          <span style={{ fontSize:11, color:T.muted }}>→</span>
-          <input type="date" value={drTo} onChange={e => setDrTo(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
-          {(drFrom || drTo) && (
-            <>
-              <button onClick={() => { setDrFrom(""); setDrTo(""); }} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.red, fontSize:10, fontWeight:700, cursor:"pointer" }}>✕ Clear</button>
-              <span style={{ fontSize:10, color:T.amber, fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>
-                {(drFrom || drTo) && `${total} active leads in range`}
-              </span>
-            </>
-          )}
-          {!drFrom && !drTo && (
-            <span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Showing all dates — select range to filter all tabs</span>
-          )}
-        </div>
-      </div>}
+      {/* ── MORTGAGE DASHBOARD ── */}
+      {isMortgage && <MortgageDashboard data={mortgageData} />}
 
-      {/* ── KPI STRIP ── */}
-      <div data-cc="kpi-strip" style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
-        <div style={{ display:"grid", gridTemplateColumns:`repeat(${[settings.kpiTotal,settings.kpiBC,settings.kpiFS,settings.kpiIncomplete,settings.kpiAvgScore].filter(v=>v!==false).length},1fr)`, maxWidth:1600, margin:"0 auto" }}>
-          {[
-            { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"active leads · BC + FS",                                    color:T.text,  accent:T.blue,  icon:"◈" },
-            { key:"kpiBC",         label:"Bank Connected",  value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`,  color:T.green, accent:T.green, icon:"✓" },
-            { key:"kpiFS",         label:"Form Submitted",  value:fs>0?fs:"—",                 sub:"Pending bank connection",                                   color:T.blue,  accent:T.blue,  icon:"◷" },
-            { key:"kpiIncomplete", label:"Incomplete",      value:incomplete>0?incomplete:"—", sub:"Cancelled / dropped off",                                   color:T.amber, accent:T.amber, icon:"◌" },
-            { key:"kpiAvgScore",   label:"Avg Lead Score",  value:avgScore!=null?avgScore:"—", sub:avgScore!=null?"enriched leads · out of 100":"Upload XLSX with income data", color:avgScore!=null?(avgScore>=75?T.green:avgScore>=50?T.blue:avgScore>=30?T.amber:T.red):T.muted, accent:avgScore!=null?(avgScore>=75?T.green:avgScore>=50?T.blue:T.amber):T.muted, icon:"★" },
-          ].filter(k => settings[k.key] !== false).map((k, i, arr) => (
-            <div data-cc="kpi-card" key={k.key} style={{ padding:"20px 24px 18px", borderRight:i<arr.length-1?`1px solid ${T.border}`:"none", position:"relative", overflow:"hidden" }}>
-              <div style={{ position:"absolute", top:0, left:0, right:0, height:"1px", background:`linear-gradient(90deg,${k.accent}60,transparent)` }}/>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <div style={{ fontSize:9, fontWeight:600, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:10, fontFamily:"'IBM Plex Mono',monospace" }}>{k.label}</div>
-                  <div style={{ fontSize:34, fontWeight:800, color:k.color, letterSpacing:-1.5, lineHeight:1, fontVariantNumeric:"tabular-nums", fontFamily:"'Geist',sans-serif" }}>{k.value}</div>
-                  <div style={{ fontSize:10, color:T.muted, marginTop:6, fontFamily:"'IBM Plex Mono',monospace" }}>{k.sub}</div>
+      {/* ── CREDIT DASHBOARD ── */}
+      {!isMortgage && <>
+
+        {/* Global date filter bar */}
+        {settings.showDateRangeBar !== false && <div data-cc="date-range-bar" style={{ background:T.surface2, borderBottom:`1px solid ${T.border}`, padding:"7px 24px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto" }}>
+            <span style={{ fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", flexShrink:0 }}>Date Range</span>
+            <input type="date" value={drFrom} onChange={e => setDrFrom(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
+            <span style={{ fontSize:11, color:T.muted }}>→</span>
+            <input type="date" value={drTo} onChange={e => setDrTo(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
+            {(drFrom || drTo) && (
+              <>
+                <button onClick={() => { setDrFrom(""); setDrTo(""); }} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.red, fontSize:10, fontWeight:700, cursor:"pointer" }}>✕ Clear</button>
+                <span style={{ fontSize:10, color:T.amber, fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>
+                  {(drFrom || drTo) && `${total} leads in range`}
+                </span>
+              </>
+            )}
+            {!drFrom && !drTo && (
+              <span style={{ fontSize:10, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Showing all dates — select range to filter all tabs</span>
+            )}
+          </div>
+        </div>}
+
+        {/* KPI strip */}
+        <div data-cc="kpi-strip" style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ display:"grid", gridTemplateColumns:`repeat(${[settings.kpiTotal,settings.kpiBC,settings.kpiFS,settings.kpiIncomplete].filter(v=>v!==false).length},1fr)`, maxWidth:1600, margin:"0 auto" }}>
+            {[
+              { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"unique · deduplicated",                                     color:T.text,  accent:T.blue,  icon:"◈" },
+              { key:"kpiBC",         label:"Bank Connected",  value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`,  color:T.green, accent:T.green, icon:"✓" },
+              { key:"kpiFS",         label:"Form Submitted",  value:fs>0?fs:"—",                 sub:"Pending bank connection",                                   color:T.blue,  accent:T.blue,  icon:"◷" },
+              { key:"kpiIncomplete", label:"Incomplete",      value:incomplete>0?incomplete:"—", sub:"Cancelled / dropped off",                                   color:T.amber, accent:T.amber, icon:"◌" },
+            ].filter(k => settings[k.key] !== false).map((k, i, arr) => (
+              <div data-cc="kpi-card" key={k.key} style={{ padding:"20px 24px 18px", borderRight:i<arr.length-1?`1px solid ${T.border}`:"none", position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", top:0, left:0, right:0, height:"1px", background:`linear-gradient(90deg,${k.accent}60,transparent)` }}/>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div>
+                    <div style={{ fontSize:9, fontWeight:600, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:10, fontFamily:"'IBM Plex Mono',monospace" }}>{k.label}</div>
+                    <div style={{ fontSize:34, fontWeight:800, color:k.color, letterSpacing:-1.5, lineHeight:1, fontVariantNumeric:"tabular-nums", fontFamily:"'Geist',sans-serif" }}>{k.value}</div>
+                    <div style={{ fontSize:10, color:T.muted, marginTop:6, fontFamily:"'IBM Plex Mono',monospace" }}>{k.sub}</div>
+                  </div>
+                  <div style={{ fontSize:22, color:`${k.accent}40`, fontWeight:300, marginTop:4, fontFamily:"'Geist',sans-serif" }}>{k.icon}</div>
                 </div>
-                <div style={{ fontSize:22, color:`${k.accent}40`, fontWeight:300, marginTop:4, fontFamily:"'Geist',sans-serif" }}>{k.icon}</div>
+                {k.key==="kpiBC" && bc>0 && fs>0 && (
+                  <div style={{ position:"absolute", bottom:16, right:16, fontSize:10, fontWeight:700, color:T.green, background:T.greenBg, padding:"2px 8px", borderRadius:4, border:`1px solid ${T.green}30`, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5 }}>
+                    {Math.round(bc/(bc+fs)*100)}% BC
+                  </div>
+                )}
               </div>
-              {k.key==="kpiBC" && bc>0 && fs>0 && (
-                <div style={{ position:"absolute", bottom:16, right:16, fontSize:10, fontWeight:700, color:T.green, background:T.greenBg, padding:"2px 8px", borderRadius:4, border:`1px solid ${T.green}30`, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5 }}>
-                  {Math.round(bc/(bc+fs)*100)}% BC
-                </div>
-              )}
-              {k.key==="kpiAvgScore" && avgScore!=null && (
-                <div style={{ position:"absolute", bottom:16, right:16, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5,
-                  color:k.color, background:`${k.accent}15`, border:`1px solid ${k.accent}30` }}>
-                  Grade {avgScore>=75?"A":avgScore>=50?"B":avgScore>=30?"C":"D"}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── DAILY DIGEST BANNER ── */}
-      {(digestStats.todayCount > 0 || digestStats.weekCount > 0) && (
-        <div
-          data-cc="daily-digest"
-          onClick={() => {
-            setTab("leads");
-            setDrFrom(digestStats.todayStr);
-            setDrTo(digestStats.todayStr);
-          }}
-          title="Click to filter Leads tab to today"
-          style={{
-            padding: "7px 24px", background: T.surface2, borderBottom: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", gap: 14, cursor: "pointer",
-            transition: "background .12s",
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = T.surface3}
-          onMouseLeave={e => e.currentTarget.style.background = T.surface2}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13 }}>📬</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: T.muted, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: "'IBM Plex Mono',monospace" }}>Daily Digest</span>
+            ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: digestStats.todayCount > 0 ? T.blue : T.muted, fontFamily: "'Geist',sans-serif", letterSpacing: -0.5, lineHeight: 1 }}>{digestStats.todayCount}</span>
-              <span style={{ fontSize: 11, color: T.textSub }}>new leads today</span>
-              {digestStats.todayCount > digestStats.yesterdayCount && digestStats.yesterdayCount >= 0 && digestStats.todayCount > 0 && (
-                <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${T.green}15`, color: T.green, border: `1px solid ${T.green}30`, fontFamily: "'IBM Plex Mono',monospace" }}>
-                  +{digestStats.todayCount - digestStats.yesterdayCount} vs yesterday
-                </span>
-              )}
-              {digestStats.todayCount < digestStats.yesterdayCount && digestStats.yesterdayCount > 0 && (
-                <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${T.amber}15`, color: T.amber, border: `1px solid ${T.amber}30`, fontFamily: "'IBM Plex Mono',monospace" }}>
-                  {digestStats.todayCount - digestStats.yesterdayCount} vs yesterday
-                </span>
-              )}
-            </span>
-            <span style={{ width: 1, height: 16, background: T.border }} />
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: T.text, fontFamily: "'Geist',sans-serif", letterSpacing: -0.5, lineHeight: 1 }}>{digestStats.weekCount}</span>
-              <span style={{ fontSize: 11, color: T.textSub }}>this week</span>
-            </span>
-          </div>
-          <span style={{ fontSize: 10, color: T.muted, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>Click to filter → today</span>
         </div>
-      )}
 
-      {/* Live / offline / stale banner */}
-      {(() => {
-        if (liveStatus?.ok && !userUploadedRef.current) {
-          const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
-          if (mins < 30) return (
-            <div style={{ padding:"6px 24px", fontSize:11, background:T.greenBg, borderBottom:`1px solid ${T.green}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-              <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.green, flexShrink:0 }}/>
-              <strong style={{ color:T.green }}>Live data</strong>
-              <span style={{ color:T.muted }}>— Auto-refreshes every 60 min · Updated {fmtAgo(liveStatus.at)}</span>
-            </div>
-          );
-          return (
+        {/* Live / offline / stale banner */}
+        {(() => {
+          if (liveStatus?.ok && !userUploadedRef.current) {
+            const mins  = Math.floor((Date.now()-liveStatus.at.getTime())/60000);
+            if (mins < 30) return (
+              <div style={{ padding:"6px 24px", fontSize:11, background:T.greenBg, borderBottom:`1px solid ${T.green}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+                <span style={{ fontSize:12 }}>🟢</span>
+                <strong style={{ color:T.green }}>Live data</strong>
+                <span style={{ color:T.muted }}>— Auto-refreshes every 60 min · Updated {fmtAgo(liveStatus.at)}</span>
+              </div>
+            );
+            return (
+              <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+                <span style={{ fontSize:12 }}>🟡</span>
+                <strong style={{ color:T.amber }}>Live · {fmtAgo(liveStatus.at)}</strong>
+                <span style={{ color:T.muted }}>— Data may be stale · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Refresh now</button></span>
+              </div>
+            );
+          }
+          if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
             <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-              <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.amber, flexShrink:0 }}/>
-              <strong style={{ color:T.amber }}>Live · {fmtAgo(liveStatus.at)}</strong>
-              <span style={{ color:T.muted }}>— Data may be stale · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Refresh now</button></span>
+              <span style={{ fontSize:12 }}>⚠️</span>
+              <strong style={{ color:T.amber }}>Auto-fetch unavailable</strong>
+              <span style={{ color:T.muted }}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current && snapshotDate && <>Showing sample data.</>}</span>
             </div>
           );
-        }
-        if (liveStatus && !liveStatus.ok && liveStatus.isUnauthorized) return (
-          <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ fontSize:12 }}>🔐</span>
-            <strong style={{ color:T.amber }}>Google authentication required</strong>
-            <span style={{ color:T.muted }}>—&nbsp;</span>
-            {GOOGLE_CLIENT_ID && tokenClientRef.current
-              ? <button className="cc-btn" onClick={() => requestToken(tokenClientRef.current)} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit", fontWeight:600 }}>Connect with Google</button>
-              : <span style={{ color:T.muted }}>Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in.</span>
-            }
-          </div>
-        );
-        if (liveStatus && !liveStatus.ok && liveStatus.isCors) return (
-          <div style={{ padding:"6px 24px", fontSize:11, background:T.amberBg, borderBottom:`1px solid ${T.amber}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <svg width="12" height="11" viewBox="0 0 14 13" fill="none" style={{ flexShrink:0, color:T.amber }}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
-            <strong style={{ color:T.amber }}>Auto-fetch unavailable</strong>
-            <span style={{ color:T.muted }}>— Upload XLSX manually or configure a CORS proxy. {!userUploadedRef.current && snapshotDate && <>Showing sample data.</>}</span>
-          </div>
-        );
-        if (liveStatus && !liveStatus.ok) return (
-          <div style={{ padding:"6px 24px", fontSize:11, background:T.redBg, borderBottom:`1px solid ${T.red}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:T.red, flexShrink:0 }}/>
-            <strong style={{ color:T.red }}>Offline · Using cached data</strong>
-            <span style={{ color:T.muted }}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Retry</button></span>
-          </div>
-        );
-        if (userUploadedRef.current && staleHours >= 2) return (
-          <div style={{ padding:"7px 24px", fontSize:11, background:staleDays>=3?T.redBg:staleDays>=1?T.amberBg:T.greenBg, borderBottom:`1px solid ${staleDays>=3?T.red+"30":staleDays>=1?T.amber+"30":T.green+"30"}`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
-            <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:staleDays>=3?T.red:staleDays>=1?T.amber:T.green, flexShrink:0 }}/>
-            <strong style={{ color:staleDays>=3?T.red:staleDays>=1?T.amber:T.green }}>
-              Snapshot {staleDays>=1?`${staleDays} day${staleDays>1?"s":""}`:`${staleHours}h`} old
-            </strong>
-            <span style={{ color:T.muted }}>— Last record: <strong>{snapshotDate}</strong> · Upload a newer XLSX to include recent leads.</span>
-          </div>
-        );
-        return null;
-      })()}
+          if (liveStatus && !liveStatus.ok) return (
+            <div style={{ padding:"6px 24px", fontSize:11, background:T.redBg, borderBottom:`1px solid ${T.red}30`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:12 }}>🔴</span>
+              <strong style={{ color:T.red }}>Offline · Using cached data</strong>
+              <span style={{ color:T.muted }}>— {liveStatus.err} · <button className="cc-btn" onClick={runFetch} style={{ background:"none", border:"none", padding:0, color:T.blue, cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>Retry</button></span>
+            </div>
+          );
+          if (userUploadedRef.current && staleHours >= 2) return (
+            <div style={{ padding:"7px 24px", fontSize:11, background:staleDays>=3?T.redBg:staleDays>=1?T.amberBg:T.greenBg, borderBottom:`1px solid ${staleDays>=3?T.red+"30":staleDays>=1?T.amber+"30":T.green+"30"}`, display:"flex", alignItems:"center", gap:8, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:13 }}>{staleDays>=3?"🔴":staleDays>=1?"🟡":"🟢"}</span>
+              <strong style={{ color:staleDays>=3?T.red:staleDays>=1?T.amber:T.green }}>
+                Snapshot {staleDays>=1?`${staleDays} day${staleDays>1?"s":""}`:`${staleHours}h`} old
+              </strong>
+              <span style={{ color:T.muted }}>— Last record: <strong>{snapshotDate}</strong> · Upload a newer XLSX to include recent leads.</span>
+            </div>
+          );
+          return null;
+        })()}
+
+        {/* Tab content */}
+        <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
+          {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
+          {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
+          {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
+          {tab==="countries" && <CountriesTab    data={filteredData}/>}
+          {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
+          {tab==="insights"  && <InsightsTab     data={filteredData}/>}
+          {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
+          {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
+          {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+        </div>
+      </>}
 
       {/* C-03: GDPR consent modal + retention warning */}
       <GdprBanner
@@ -674,19 +641,6 @@ function AppInner() {
 
       {/* Settings panel */}
       {showSettings && <SettingsPanel settings={settings} onSave={saveSettings} onClose={() => setShowSettings(false)} />}
-
-      {/* ── Tab content ── */}
-      <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
-        {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
-        {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
-        {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
-        {tab==="countries" && <CountriesTab    data={filteredData}/>}
-        {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
-        {tab==="insights"  && <InsightsTab     data={filteredData}/>}
-        {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
-        {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
-        {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
-      </div>
     </div>
   );
 }

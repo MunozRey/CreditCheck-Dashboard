@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';                          // M-01: local package, no CDN loader
 import { useTheme } from '../context/ThemeContext.jsx';
-import { processRows } from '../utils/xlsxParser.js';
+import { parseWorkbook } from '../utils/xlsxParser.js';
 import { auditLog } from '../utils/auditLog.js';
 
 // H-01: Upload guardrails
@@ -41,43 +41,41 @@ export default function UploadZone({ onData }) {
         throw new Error('Invalid file format. Only .xlsx and .xls files are accepted.');
       }
 
-      const wb   = XLSX.read(buf, { type: 'array' });
-      const rawRows = XLSX.utils.sheet_to_json(
-        wb.Sheets[wb.SheetNames[0]],
-        { header: 1, defval: '' }
-      );
+      const wb = XLSX.read(buf, { type: 'array' });
+      const { creditData, mortgageData } = parseWorkbook(wb, XLSX);
 
-      if (rawRows.length < 2) throw new Error('Empty file — no data rows found.');
+      const bc  = creditData['Bank Connected'].length;
+      const fs  = creditData['Form Submitted'].length;
+      const ic  = (creditData['Incomplete'] || []).length;
+      const mAll = [
+        ...(mortgageData['Bank Connected'] || []),
+        ...(mortgageData['Form Submitted'] || []),
+        ...(mortgageData['Incomplete']     || []),
+      ].length;
 
-      // H-01: Row cap — prevents browser memory exhaustion on huge files
-      const headers  = rawRows[0].map(h => String(h || ''));
-      const dataRows = rawRows.slice(1, MAX_ROWS + 1);
-      const truncated = rawRows.length - 1 > MAX_ROWS;
+      const totalRows = bc + fs + ic;
+      const truncated = totalRows > MAX_ROWS;
 
-      const d  = processRows(dataRows, headers);
-      const bc = d['Bank Connected'].length;
-      const fs = d['Form Submitted'].length;
-      const ic = (d['Incomplete'] || []).length;
+      if (bc + fs === 0 && mAll === 0) {
+        throw new Error('No leads found. Check column headers match expected format.');
+      }
 
-      if (bc + fs === 0) throw new Error('No leads found. Check column headers match the expected format.');
-
-      const suffix = truncated ? ` (capped at ${MAX_ROWS} rows)` : '';
-      setMsg(`${bc} Bank Connected · ${fs} Form Submitted · ${ic} Incomplete${suffix}`);
+      const creditLabel   = `${Math.min(totalRows, MAX_ROWS).toLocaleString()} credit lead${totalRows !== 1 ? 's' : ''}`;
+      const mortgageLabel = `${mAll.toLocaleString()} mortgage lead${mAll !== 1 ? 's' : ''}`;
+      const suffix        = truncated ? ` (capped at ${MAX_ROWS} rows)` : '';
+      setMsg(`${creditLabel} · ${mortgageLabel}${suffix}`);
       setStatus('ok');
 
       // M-04: Audit trail for data uploads (no PII in metadata)
       auditLog('data_upload', {
-        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), // sanitise filename
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
         fileSizeKB: Math.round(file.size / 1024),
-        rowCount: bc + fs + ic,
+        rowCount: totalRows + mAll,
         truncated,
       });
 
-      onData(d);
-    } catch (e) {
-      setStatus('err');
-      setMsg(String(e.message || e));
-    }
+      onData({ creditData, mortgageData });
+    } catch (e) { setStatus('err'); setMsg(String(e.message || e)); }
   }, [onData]);
 
   return (
@@ -106,7 +104,7 @@ export default function UploadZone({ onData }) {
         {status === 'loading' && 'Processing…'}
         {(status === 'ok' || status === 'err') && msg}
       </div>
-      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore & Pipedrive formats · deduplicates by email · max 10 MB / 5 000 rows</div>}
+      {status === 'idle' && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: 0.3 }}>CreditScore · Mortgage · Pipedrive formats · deduplicates by email</div>}
     </div>
   );
 }
