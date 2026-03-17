@@ -4,7 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import AuthGate from './components/AuthGate.jsx';             // C-01
 import GdprBanner, { ClearDataButton } from './components/GdprBanner.jsx'; // C-03
 import UploadZone from './components/UploadZone.jsx';
-import ExportModal from './components/ExportModal.jsx';
+import ReportModal from './components/ReportModal.jsx';
 import KeyboardHelp from './components/KeyboardHelp.jsx';
 import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
@@ -633,7 +633,7 @@ function AppInner() {
 
       {/* Report / Export modal */}
       {showReportModal && (
-        <ExportModal data={filteredData} onClose={() => setShowReportModal(false)}/>
+        <ReportModal data={filteredData} onClose={() => setShowReportModal(false)}/>
       )}
 
       {/* Keyboard help overlay */}
