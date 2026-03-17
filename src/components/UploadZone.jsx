@@ -2,6 +2,21 @@ import React, { useState, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';                          // M-01: local package, no CDN loader
 import { useTheme } from '../context/ThemeContext.jsx';
 import { parseWorkbook } from '../utils/xlsxParser.js';
+import { auditLog } from '../utils/auditLog.js';
+
+// H-01: Upload guardrails
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_ROWS       = 5_000;
+
+// H-01: XLSX/XLS magic bytes (ZIP PK header and legacy BIFF CFB header)
+function hasValidMagicBytes(buf) {
+  const b = new Uint8Array(buf, 0, 8);
+  // XLSX = ZIP: PK\x03\x04
+  if (b[0] === 0x50 && b[1] === 0x4B && b[2] === 0x03 && b[3] === 0x04) return true;
+  // XLS = Compound Document: \xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1
+  if (b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0) return true;
+  return false;
+}
 
 export default function UploadZone({ onData }) {
   const { T } = useTheme();
@@ -26,37 +41,6 @@ export default function UploadZone({ onData }) {
         throw new Error('Invalid file format. Only .xlsx and .xls files are accepted.');
       }
 
-      const wb   = XLSX.read(buf, { type: 'array' });
-      const rawRows = XLSX.utils.sheet_to_json(
-        wb.Sheets[wb.SheetNames[0]],
-        { header: 1, defval: '' }
-      );
-
-      if (rawRows.length < 2) throw new Error('Empty file — no data rows found.');
-
-      // H-01: Row cap — prevents browser memory exhaustion on huge files
-      const headers  = rawRows[0].map(h => String(h || ''));
-      const dataRows = rawRows.slice(1, MAX_ROWS + 1);
-      const truncated = rawRows.length - 1 > MAX_ROWS;
-
-      const d  = processRows(dataRows, headers);
-      const bc = d['Bank Connected'].length;
-      const fs = d['Form Submitted'].length;
-      const ic = (d['Incomplete'] || []).length;
-
-      if (bc + fs === 0) throw new Error('No leads found. Check column headers match the expected format.');
-
-      const suffix = truncated ? ` (capped at ${MAX_ROWS} rows)` : '';
-      setMsg(`${bc} Bank Connected · ${fs} Form Submitted · ${ic} Incomplete${suffix}`);
-      setStatus('ok');
-
-      // M-04: Audit trail for data uploads (no PII in metadata)
-      auditLog('data_upload', {
-        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), // sanitise filename
-        fileSizeKB: Math.round(file.size / 1024),
-        rowCount: bc + fs + ic,
-        truncated,
-      });
       const wb = XLSX.read(buf, { type: 'array' });
       const { creditData, mortgageData } = parseWorkbook(wb, XLSX);
 
@@ -69,14 +53,27 @@ export default function UploadZone({ onData }) {
         ...(mortgageData['Incomplete']     || []),
       ].length;
 
+      const totalRows = bc + fs + ic;
+      const truncated = totalRows > MAX_ROWS;
+
       if (bc + fs === 0 && mAll === 0) {
         throw new Error('No leads found. Check column headers match expected format.');
       }
 
-      const creditLabel   = `${(bc + fs + ic).toLocaleString()} credit lead${(bc + fs + ic) !== 1 ? 's' : ''}`;
+      const creditLabel   = `${Math.min(totalRows, MAX_ROWS).toLocaleString()} credit lead${totalRows !== 1 ? 's' : ''}`;
       const mortgageLabel = `${mAll.toLocaleString()} mortgage lead${mAll !== 1 ? 's' : ''}`;
-      setMsg(`${creditLabel} · ${mortgageLabel}`);
+      const suffix        = truncated ? ` (capped at ${MAX_ROWS} rows)` : '';
+      setMsg(`${creditLabel} · ${mortgageLabel}${suffix}`);
       setStatus('ok');
+
+      // M-04: Audit trail for data uploads (no PII in metadata)
+      auditLog('data_upload', {
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+        fileSizeKB: Math.round(file.size / 1024),
+        rowCount: totalRows + mAll,
+        truncated,
+      });
+
       onData({ creditData, mortgageData });
     } catch (e) { setStatus('err'); setMsg(String(e.message || e)); }
   }, [onData]);
