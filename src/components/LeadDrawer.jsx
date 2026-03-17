@@ -135,7 +135,7 @@ export default function LeadDrawer({ lead, onClose }) {
 
       {/* Drawer panel */}
       <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
+        position: "fixed", top: 0, right: 0, bottom: 0, width: "clamp(480px, 40vw, 680px)",
         background: T.surface, borderLeft: `1px solid ${T.border}`,
         zIndex: 201, display: "flex", flexDirection: "column",
         boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
