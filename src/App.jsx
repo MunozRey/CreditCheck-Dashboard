@@ -197,17 +197,19 @@ function AppInner() {
     return runFetchCore(force, googleTokenRef.current);
   }, [runFetchCore]);
 
-  useEffect(() => {
-    // Initial fetch on mount is always allowed (force=true)
-    runFetch(true);
-    const id = setInterval(() => runFetch(true), 60 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [runFetch]);
-
   // ── Partner / revenue state — persisted via window.storage ───────────────
   const [partners, setPartners]             = useState([newPartner("Partner A")]);
   const [partnerMonthData, setPartnerMonthData] = useState({});
   const [storageReady, setStorageReady]     = useState(false);
+
+  // Fetch on mount + every 60 min — deferred until storageReady so that
+  // a restored userUploadedRef flag can block the live fetch before it fires.
+  useEffect(() => {
+    if (!storageReady) return;
+    runFetch();
+    const id = setInterval(runFetch, 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [runFetch, storageReady]);
 
   useEffect(() => {
     const fallback = setTimeout(() => setStorageReady(true), 3000);
@@ -245,6 +247,18 @@ function AppInner() {
         if (r5?.value) {
           const parsed = JSON.parse(r5.value);
           if (parsed && typeof parsed === "object") setMortgageData(parsed);
+        }
+      } catch(_) {}
+      // Restore uploaded XLSX rows — must happen before storageReady triggers runFetch
+      try {
+        const rUploaded = await window.storage.get("cc_user_uploaded");
+        if (rUploaded?.value === "true") {
+          userUploadedRef.current = true;
+          const rRows = await window.storage.get("cc_rows");
+          if (rRows?.value) {
+            const parsed = JSON.parse(rRows.value);
+            if (parsed && typeof parsed === "object") setData(parsed);
+          }
         }
       } catch(_) {}
       clearTimeout(fallback);
@@ -292,6 +306,9 @@ function AppInner() {
     setData(creditData);
     setMortgageData(md);
     setUpload(false);
+    // Persist uploaded rows so they survive page reloads
+    window.storage.set("cc_user_uploaded", "true").catch(() => {});
+    window.storage.set("cc_rows", JSON.stringify(creditData)).catch(() => {});
   }, []);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
