@@ -89,7 +89,15 @@ function FieldRow({ label, value, mono, T }) {
 
 export default function LeadDrawer({ lead, onClose }) {
   const { T } = useTheme();
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]           = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // Close on ESC key
+  React.useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   if (!lead) return null;
 
@@ -111,6 +119,15 @@ export default function LeadDrawer({ lead, onClose }) {
     } catch(_) {}
   };
 
+  const handleCopyEmail = () => {
+    if (!lead.email) return;
+    try {
+      navigator.clipboard.writeText(lead.email);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 1800);
+    } catch(_) {}
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -118,7 +135,7 @@ export default function LeadDrawer({ lead, onClose }) {
 
       {/* Drawer panel */}
       <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
+        position: "fixed", top: 0, right: 0, bottom: 0, width: "clamp(480px, 40vw, 680px)",
         background: T.surface, borderLeft: `1px solid ${T.border}`,
         zIndex: 201, display: "flex", flexDirection: "column",
         boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
@@ -146,6 +163,11 @@ export default function LeadDrawer({ lead, onClose }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            {lead.email && (
+              <button onClick={handleCopyEmail} title="Copy email address" style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${emailCopied ? T.green : T.border}`, background: emailCopied ? T.green : T.surface, color: emailCopied ? "#fff" : T.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'IBM Plex Mono',monospace", transition: "all .15s" }}>
+                {emailCopied ? "✓ Email copied" : "@ Copy email"}
+              </button>
+            )}
             <button onClick={handleCopy} title="Copy as JSON" style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: copied ? T.green : T.surface, color: copied ? "#fff" : T.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'IBM Plex Mono',monospace", transition: "all .15s" }}>
               {copied ? "✓ Copied" : "</> JSON"}
             </button>

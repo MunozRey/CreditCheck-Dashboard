@@ -1,42 +1,52 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTheme, getCatStyle } from '../context/ThemeContext.jsx';
 import { toTitleCase } from '../utils/format.js';
+import { scoreLead, GRADE_COLOR, GRADE_LABEL } from '../utils/scoring.js';
+import { useLeadFilters } from '../hooks/useLeadFilters.js';
 import Card from '../components/Card.jsx';
 import Avatar from '../components/Avatar.jsx';
 import Chip from '../components/Chip.jsx';
 import LeadDrawer from '../components/LeadDrawer.jsx';
 
+// ── localStorage persistence ──────────────────────────────────────────────────
+const PREFS_KEY = 'creditcheck_dashboard_prefs';
+function readPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch(_) { return {}; }
+}
+function savePrefs(patch) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ ...readPrefs(), ...patch })); } catch(_) {}
+}
+
 // Default visible columns
 const ALL_COLUMNS = [
   { key: "name",       label: "Name",       always: true },
   { key: "email",      label: "Email",      always: false },
+  { key: "score",      label: "Score",      always: false },
   { key: "purpose",    label: "Purpose",    always: false },
   { key: "created",    label: "Date",       always: false },
   { key: "country",    label: "Country",    always: false },
   { key: "employment", label: "Employment", always: false },
   { key: "income",     label: "Income",     always: false },
 ];
-const DEFAULT_VISIBLE = new Set(["name", "email", "purpose", "created"]);
+const DEFAULT_VISIBLE = new Set(["name", "email", "score", "created"]);
 
 export default function LeadsTab({ data, starredEmails = new Set(), toggleStar = () => {}, defaultCat = "Form Submitted", defaultSort = "created" }) {
   const { T } = useTheme();
   const CAT_STYLE = getCatStyle(T);
 
-  const [cat, setCat]               = useState(defaultCat);
-  const [search, setSearch]         = useState("");
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
+  const [cat, setCat]               = useState(() => readPrefs().tableCategory || "Bank Connected");
   const [tableOpen, setTableOpen]   = useState(true);
-  const [sortBy, setSortBy]         = useState(defaultSort);
-  const [starOnly, setStarOnly]     = useState(false);
-  const [purposeFilter, setPurposeFilter]   = useState("all");
-  const [empFilter, setEmpFilter]           = useState("all");
-  const [countryFilter, setCountryFilter]   = useState("all");
-  const [verifiedFilter, setVerifiedFilter] = useState("all");
-  const [visibleCols, setVisibleCols]       = useState(DEFAULT_VISIBLE);
-  const [showColMenu, setShowColMenu]       = useState(false);
-  const [selectedLead, setSelectedLead]     = useState(null);
+  const [visibleCols, setVisibleCols] = useState(() => {
+    const prefs = readPrefs();
+    return Array.isArray(prefs.visibleColumns) ? new Set(prefs.visibleColumns) : DEFAULT_VISIBLE;
+  });
+  const [showColMenu, setShowColMenu] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
   const colMenuRef = useRef(null);
+
+  // ── Persist category + columns (declared before their deps are in scope) ──
+  useEffect(() => { savePrefs({ tableCategory: cat }); }, [cat]);
+  useEffect(() => { savePrefs({ visibleColumns: [...visibleCols] }); }, [visibleCols]);
 
   // Close column menu on outside click
   useEffect(() => {
@@ -48,36 +58,22 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
 
   const allLeads = useMemo(() => (data[cat] || []).map(r => ({ ...r, cat })), [data, cat]);
 
-  const allPurposes  = useMemo(() => [...new Set(allLeads.map(r => r.purpose).filter(Boolean))].sort(), [allLeads]);
-  const allCountries = useMemo(() => [...new Set(allLeads.map(r => r.country).filter(Boolean))].sort(), [allLeads]);
-  const allEmp       = useMemo(() => [...new Set(allLeads.map(r => (r.employment || "")).filter(Boolean))].sort(), [allLeads]);
+  const {
+    search, setSearch,
+    dateFrom, setDateFrom,
+    dateTo, setDateTo,
+    starOnly, setStarOnly,
+    purposeFilter, setPurposeFilter,
+    empFilter, setEmpFilter,
+    countryFilter, setCountryFilter,
+    verifiedFilter, setVerifiedFilter,
+    sortBy, toggleSort, sortIndicator,
+    allPurposes, allCountries, allEmp,
+    filtered, hasFilters, clearFilters,
+  } = useLeadFilters({ allLeads, starredEmails, defaultSort: readPrefs().tableSort || defaultSort || "created" });
 
-  const filtered = useMemo(() => {
-    let rows = allLeads;
-    if (starOnly)               rows = rows.filter(r => starredEmails.has(r.email));
-    if (search) {
-      const q = search.toLowerCase();
-      rows = rows.filter(r => (r.name || "").toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q) || (r.purpose || "").toLowerCase().includes(q));
-    }
-    if (dateFrom)               rows = rows.filter(r => r.created && r.created.slice(0, 10) >= dateFrom);
-    if (dateTo)                 rows = rows.filter(r => r.created && r.created.slice(0, 10) <= dateTo);
-    if (purposeFilter !== "all") rows = rows.filter(r => r.purpose === purposeFilter);
-    if (empFilter !== "all")     rows = rows.filter(r => (r.employment || "") === empFilter);
-    if (countryFilter !== "all") rows = rows.filter(r => (r.country || "") === countryFilter);
-    if (verifiedFilter === "verified")   rows = rows.filter(r => r.emailVerified);
-    if (verifiedFilter === "unverified") rows = rows.filter(r => !r.emailVerified);
-    return [...rows].sort((a, b) => {
-      if (sortBy === "name")    return (a.name || "").localeCompare(b.name || "");
-      if (sortBy === "purpose") return (a.purpose || "").localeCompare(b.purpose || "");
-      if (sortBy === "country") return (a.country || "").localeCompare(b.country || "");
-      return (b.created || "").localeCompare(a.created || "");
-    });
-  }, [allLeads, search, dateFrom, dateTo, sortBy, purposeFilter, empFilter, countryFilter, verifiedFilter, starOnly, starredEmails]);
-
-  const hasFilters = !!(search || dateFrom || dateTo || purposeFilter !== "all" || empFilter !== "all" || countryFilter !== "all" || verifiedFilter !== "all" || starOnly);
-  const clearFilters = () => { setSearch(""); setDateFrom(""); setDateTo(""); setPurposeFilter("all"); setEmpFilter("all"); setCountryFilter("all"); setVerifiedFilter("all"); setStarOnly(false); };
-
-  const visibleColList = ALL_COLUMNS.filter(c => c.always || visibleCols.has(c.key));
+  // sortBy comes from useLeadFilters — this effect MUST be after the hook call
+  useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]); // eslint-disable-line react-hooks/rules-of-hooks
 
   const toggleCol = (key) => {
     setVisibleCols(prev => {
@@ -86,6 +82,8 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
       return next;
     });
   };
+
+  const visibleColList = ALL_COLUMNS.filter(c => c.always || visibleCols.has(c.key));
 
   const inputStyle = { border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, outline: "none", background: T.surface2, fontFamily: "'Geist',sans-serif" };
 
@@ -160,13 +158,6 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
               {starOnly ? "★" : "☆"} Starred{starOnly && starredEmails.size > 0 ? ` (${[...starredEmails].filter(e => allLeads.some(r => r.email === e)).length})` : ""}
             </button>
 
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={inputStyle}>
-              <option value="created">↓ Date</option>
-              <option value="name">A→Z Name</option>
-              <option value="purpose">↓ Purpose</option>
-              <option value="country">↓ Country</option>
-            </select>
-
             {allPurposes.length > 0 && (
               <select value={purposeFilter} onChange={e => setPurposeFilter(e.target.value)} style={{ ...inputStyle, maxWidth: 140 }}>
                 <option value="all">All purposes</option>
@@ -212,6 +203,15 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                       {col.label}
                     </label>
                   ))}
+                  <div style={{ borderTop: `1px solid ${T.border}`, margin: "6px 0 0" }}>
+                    <button onClick={() => {
+                      setVisibleCols(DEFAULT_VISIBLE);
+                      savePrefs({ visibleColumns: [...DEFAULT_VISIBLE] });
+                      setShowColMenu(false);
+                    }} style={{ width: "100%", background: "none", border: "none", padding: "7px 14px", fontSize: 11, color: T.muted, cursor: "pointer", textAlign: "left", fontFamily: "'Geist',sans-serif" }}>
+                      Reset to defaults
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -226,8 +226,14 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                 <tr style={{ background: T.surface2, position: "sticky", top: 0, zIndex: 1 }}>
                   <th style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 32, textAlign: "center" }} />
                   {visibleColList.map(col => (
-                    <th key={col.key} onClick={() => setSortBy(col.key)} style={{ padding: "9px 14px", textAlign: "left", fontWeight: 700, color: sortBy === col.key ? T.navy : T.muted, fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", borderBottom: `1px solid ${T.border}`, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
-                      {col.label}{sortBy === col.key ? " ↓" : ""}
+                    <th key={col.key} onClick={() => toggleSort(col.key)} style={{
+                      padding: "9px 14px", textAlign: "left", fontWeight: 700,
+                      color: sortBy === col.key ? T.navy : T.muted,
+                      fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase",
+                      borderBottom: `1px solid ${T.border}`, cursor: "pointer",
+                      userSelect: "none", whiteSpace: "nowrap",
+                    }}>
+                      {col.label}{sortIndicator(col.key)}
                     </th>
                   ))}
                   <th style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 24 }} />
@@ -241,7 +247,7 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                     onMouseEnter={e => e.currentTarget.style.background = T.rowHover}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
 
-                    {/* Star toggle — stop propagation so click doesn't open drawer */}
+                    {/* Star toggle */}
                     <td style={{ padding: "10px 8px", textAlign: "center", width: 32 }} onClick={e => { e.stopPropagation(); toggleStar(row.email); }}>
                       <span title={starredEmails.has(row.email) ? "Unstar" : "Star this lead"} style={{ fontSize: 14, cursor: "pointer", color: starredEmails.has(row.email) ? "#F59E0B" : T.border, userSelect: "none", transition: "color .12s" }}>
                         {starredEmails.has(row.email) ? "★" : "☆"}
@@ -260,6 +266,19 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                       if (col.key === "email") return (
                         <td key="email" style={{ padding: "10px 14px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{row.email || "—"}</td>
                       );
+                      if (col.key === "score") {
+                        const s     = scoreLead(row);
+                        const grade = s >= 75 ? "A" : s >= 50 ? "B" : s >= 30 ? "C" : "D";
+                        const color = s >= 75 ? T.green : s >= 50 ? T.blue : s >= 30 ? T.amber : T.red;
+                        return (
+                          <td key="score" style={{ padding: "10px 14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color, fontVariantNumeric: "tabular-nums", fontFamily: "'IBM Plex Mono',monospace" }}>{s}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: `${color}15`, color, border: `1px solid ${color}30`, fontFamily: "'IBM Plex Mono',monospace" }}>{grade}</span>
+                            </div>
+                          </td>
+                        );
+                      }
                       if (col.key === "purpose") return (
                         <td key="purpose" style={{ padding: "10px 14px" }}>
                           {row.purpose
@@ -285,7 +304,9 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>{starOnly ? "No starred leads in this category" : "No results"}</td></tr>
+                  <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>
+                    {starOnly ? "No starred leads in this category" : hasFilters ? "No leads match the current filters — try clearing some filters" : `No leads in ${cat}`}
+                  </td></tr>
                 )}
               </tbody>
             </table>
