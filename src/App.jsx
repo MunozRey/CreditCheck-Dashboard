@@ -139,16 +139,19 @@ function AppInner() {
     }
   }, [resetCountdown]);
 
-  useEffect(() => {
-    runFetch();
-    const id = setInterval(runFetch, 60 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [runFetch]);
-
   // ── Partner / revenue state — persisted via window.storage ───────────────
   const [partners, setPartners]             = useState([newPartner("Partner A")]);
   const [partnerMonthData, setPartnerMonthData] = useState({});
   const [storageReady, setStorageReady]     = useState(false);
+
+  // Fetch on mount + every 60 min — deferred until storageReady so that
+  // a restored userUploadedRef flag can block the live fetch before it fires.
+  useEffect(() => {
+    if (!storageReady) return;
+    runFetch();
+    const id = setInterval(runFetch, 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [runFetch, storageReady]);
 
   useEffect(() => {
     // 3-second fallback: if window.storage hangs, unblock the UI anyway
@@ -180,6 +183,18 @@ function AppInner() {
         if (r4?.value) {
           const parsed = JSON.parse(r4.value);
           if (parsed && typeof parsed === "object") setSettings(s => ({ ...s, ...parsed }));
+        }
+      } catch(_) {}
+      // Restore uploaded XLSX rows — must happen before storageReady triggers runFetch
+      try {
+        const rUploaded = await window.storage.get("cc_user_uploaded");
+        if (rUploaded?.value === "true") {
+          userUploadedRef.current = true;
+          const rRows = await window.storage.get("cc_rows");
+          if (rRows?.value) {
+            const parsed = JSON.parse(rRows.value);
+            if (parsed && typeof parsed === "object") setData(parsed);
+          }
         }
       } catch(_) {}
       clearTimeout(fallback);
@@ -222,6 +237,9 @@ function AppInner() {
     userUploadedRef.current = true;
     setData(d);
     setUpload(false);
+    // Persist uploaded rows so they survive page reloads
+    window.storage.set("cc_user_uploaded", "true").catch(() => {});
+    window.storage.set("cc_rows", JSON.stringify(d)).catch(() => {});
   }, []);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
