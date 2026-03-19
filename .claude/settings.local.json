@@ -16,7 +16,11 @@
       "Bash(git config:*)",
       "Bash(gh repo:*)",
       "Bash(where gh:*)",
-      "Bash(winget list:*)"
+      "Bash(winget list:*)",
+      "Bash(npm run:*)",
+      "Bash(gh pr:*)",
+      "Bash(winget install:*)",
+      "Bash(\"/c/Program Files/GitHub:*)"
     ]
   }
 }

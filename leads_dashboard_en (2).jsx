@@ -3899,6 +3899,11 @@ function AppInner() {
   const [liveStatus,setLiveStatus]=useState(null);
   const [fetching,setFetching]=useState(false);
   const userUploadedRef=useRef(false); // true once user manually uploads XLSX
+  // Lifted state shared between Partners + Revenue tabs — persisted via storage
+  const [partners,setPartners]=useState([newPartner("Partner A")]);
+  const [partnerMonthData,setPartnerMonthData]=useState({});
+  const [storageReady,setStorageReady]=useState(false);
+
   // ── Live fetch callback ───────────────────────────────────────────────────
   const runFetch = useCallback(async () => {
     if (userUploadedRef.current) return; // manual upload takes priority
@@ -3914,17 +3919,14 @@ function AppInner() {
     }
   }, []);
 
-  // Fetch on mount + every 60 min
+  // Fetch on mount + every 60 min — deferred until storageReady so that
+  // a restored userUploadedRef flag can block the fetch before it fires.
   useEffect(() => {
+    if (!storageReady) return;
     runFetch();
     const id = setInterval(runFetch, 60 * 60 * 1000);
     return () => clearInterval(id);
-  }, [runFetch]);
-
-  // Lifted state shared between Partners + Revenue tabs — persisted via storage
-  const [partners,setPartners]=useState([newPartner("Partner A")]);
-  const [partnerMonthData,setPartnerMonthData]=useState({});
-  const [storageReady,setStorageReady]=useState(false);
+  }, [runFetch, storageReady]);
 
   // Load from storage on mount
   useEffect(()=>{
@@ -3941,6 +3943,18 @@ function AppInner() {
         if (r2?.value) {
           const parsed = JSON.parse(r2.value);
           if (parsed && typeof parsed === "object") setPartnerMonthData(parsed);
+        }
+      } catch(_){}
+      // Restore uploaded XLSX rows — must happen before storageReady triggers runFetch
+      try {
+        const rUploaded = await window.storage.get("cc_user_uploaded");
+        if (rUploaded?.value === "true") {
+          userUploadedRef.current = true;
+          const rRows = await window.storage.get("cc_rows");
+          if (rRows?.value) {
+            const parsed = JSON.parse(rRows.value);
+            if (parsed && typeof parsed === "object") setData(parsed);
+          }
         }
       } catch(_){}
       setStorageReady(true);
@@ -3975,6 +3989,9 @@ function AppInner() {
     userUploadedRef.current=true; // pause auto-refresh until page reload
     setData(d);
     setUpload(false);
+    // Persist uploaded rows so they survive page reloads
+    window.storage.set("cc_user_uploaded", "true").catch(()=>{});
+    window.storage.set("cc_rows", JSON.stringify(d)).catch(()=>{});
   },[]);
 
   const staleDays =snapshotDate?Math.floor((new Date()-new Date(snapshotDate))/86400000):null;
