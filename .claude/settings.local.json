@@ -18,6 +18,9 @@
       "Bash(where gh:*)",
       "Bash(winget list:*)",
       "Bash(npm run:*)",
+      "Bash(gh pr:*)",
+      "Bash(winget install:*)",
+      "Bash(\"/c/Program Files/GitHub:*)",
       "Bash(node_modules/.bin/vite build:*)",
       "Read(//c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard/**)",
       "Bash(node -e \":*)"
