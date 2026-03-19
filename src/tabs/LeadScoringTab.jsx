@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { scoreLead, EMP_OPTIONS } from '../utils/scoring.js';
 import { VERTICALS_DEF } from '../constants/verticals.js';
 import Card from '../components/Card.jsx';
@@ -12,6 +13,7 @@ const PAGE_SIZE = 50;
 
 export default function LeadScoringTab({ data }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
 
   // Local grade color helper using context T (avoids global T dependency)
   const gradeColor = (s) => s >= 75 ? T.green : s >= 50 ? T.blue : s >= 30 ? T.amber : T.red;
@@ -218,8 +220,8 @@ export default function LeadScoringTab({ data }) {
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "9px 12px", color: T.muted, fontVariantNumeric: "tabular-nums", fontFamily: "'IBM Plex Mono',monospace" }}>{page * PAGE_SIZE + i + 1}</td>
                     <td style={{ padding: "9px 12px" }}>
-                      <div style={{ fontWeight: 600, color: T.text }}>{r.name || "—"}</div>
-                      <div style={{ fontSize: 10, color: T.muted }}>{r.email || ""}</div>
+                      <div style={{ fontWeight: 600, color: T.text }}>{r.name ? maskName(r.name) : "—"}</div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{r.email ? maskEmail(r.email) : ""}</div>
                     </td>
                     <td style={{ padding: "9px 12px", width: 120 }}>
                       <ScoreBar score={r._score} />

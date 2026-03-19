@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
+import { PrivacyProvider, usePrivacy } from './context/PrivacyContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import AuthGate from './components/AuthGate.jsx';             // C-01
 import GdprBanner, { ClearDataButton } from './components/GdprBanner.jsx'; // C-03
@@ -57,6 +58,7 @@ const EMPTY_MORTGAGE = { "Bank Connected": [], "Form Submitted": [], "Incomplete
 
 function AppInner() {
   const { T, theme, toggleTheme } = useTheme();
+  const { privacyMode, togglePrivacy }        = usePrivacy();
 
   const [data, setData]                       = useState(DEFAULT_DATA);
   const [mortgageData, setMortgageData]       = useState(EMPTY_MORTGAGE);
@@ -286,6 +288,7 @@ function AppInner() {
   const fs         = (filteredData["Form Submitted"] || []).length;
   const incomplete = (filteredData["Incomplete"]     || []).length;
   const total      = bc + fs; // active leads only — Incomplete/cancelled excluded
+  const creditCount = bc + fs; // active leads badge for CreditCheck pill
 
   const allDates = [...(data["Bank Connected"]||[]),...(data["Form Submitted"]||[]),...(data["Incomplete"]||[])]
     .map(r=>r.created).filter(Boolean).sort();
@@ -358,11 +361,11 @@ function AppInner() {
             )}
           </div>
 
-          {/* Dashboard switcher pills */}
+          {/* Dashboard switcher pills — CreditCheck | Mortgages */}
           <div style={{ display:"flex", gap:3, marginRight:8, background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}`, flexShrink:0 }}>
             {[
               { id:"credit",    label:"CreditCheck" },
-              { id:"mortgages", label:"Hipotecas"   },
+              { id:"mortgages", label:"Mortgages"   },
             ].map(d => {
               const active = dashboard === d.id;
               return (
@@ -376,6 +379,11 @@ function AppInner() {
                   transition:"all .15s", display:"flex", alignItems:"center", gap:5,
                 }}>
                   {d.label}
+                  {d.id === "credit" && creditCount > 0 && (
+                    <span style={{ background:T.blue, color:"#fff", borderRadius:9999, fontSize:9, padding:"0px 5px", fontWeight:700, lineHeight:"16px" }}>
+                      {creditCount}
+                    </span>
+                  )}
                   {d.id === "mortgages" && mortgageCount > 0 && (
                     <span style={{ background:T.blue, color:"#fff", borderRadius:9999, fontSize:9, padding:"0px 5px", fontWeight:700, lineHeight:"16px" }}>
                       {mortgageCount}
@@ -476,6 +484,18 @@ function AppInner() {
               {theme === "light"
                 ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              }
+            </button>
+
+            {/* Privacy toggle — Hide / Show PII */}
+            <button
+              className="cc-btn"
+              onClick={togglePrivacy}
+              title={privacyMode ? "Show PII (privacy mode on)" : "Hide PII (click to mask names & emails)"}
+              style={{ width:32, height:32, borderRadius:7, border:`1px solid ${privacyMode ? T.amber : T.border}`, background:privacyMode ? `${T.amber}18` : T.surface2, display:"flex", alignItems:"center", justifyContent:"center", color:privacyMode ? T.amber : T.muted, flexShrink:0, cursor:"pointer", transition:"all .15s" }}>
+              {privacyMode
+                ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
               }
             </button>
 
@@ -665,12 +685,14 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      {/* C-01: AuthGate — password prompt if VITE_AUTH_PASSWORD_HASH is set */}
-      <AuthGate>
-        <ErrorBoundary>
-          <AppInner />
-        </ErrorBoundary>
-      </AuthGate>
+      <PrivacyProvider>
+        {/* C-01: AuthGate — password prompt if VITE_AUTH_PASSWORD_HASH is set */}
+        <AuthGate>
+          <ErrorBoundary>
+            <AppInner />
+          </ErrorBoundary>
+        </AuthGate>
+      </PrivacyProvider>
     </ThemeProvider>
   );
 }

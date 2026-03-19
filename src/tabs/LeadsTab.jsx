@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTheme, getCatStyle } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { toTitleCase } from '../utils/format.js';
 import { scoreLead, GRADE_COLOR, GRADE_LABEL } from '../utils/scoring.js';
 import { useLeadFilters } from '../hooks/useLeadFilters.js';
@@ -33,6 +34,7 @@ const DEFAULT_VISIBLE = new Set(["name", "email", "score", "created"]);
 export default function LeadsTab({ data, starredEmails = new Set(), toggleStar = () => {}, defaultCat = "Form Submitted", defaultSort = "created" }) {
   const { T } = useTheme();
   const CAT_STYLE = getCatStyle(T);
+  const { maskName, maskEmail } = usePrivacy();
 
   const [cat, setCat]               = useState(() => readPrefs().tableCategory || "Bank Connected");
   const [tableOpen, setTableOpen]   = useState(true);
@@ -258,13 +260,13 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                       if (col.key === "name") return (
                         <td key="name" style={{ padding: "10px 14px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <Avatar name={toTitleCase(row.name)} />
-                            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>{row.name ? toTitleCase(row.name) : "—"}</span>
+                            <Avatar name={maskName(toTitleCase(row.name))} />
+                            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>{row.name ? maskName(toTitleCase(row.name)) : "—"}</span>
                           </div>
                         </td>
                       );
                       if (col.key === "email") return (
-                        <td key="email" style={{ padding: "10px 14px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{row.email || "—"}</td>
+                        <td key="email" style={{ padding: "10px 14px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{row.email ? maskEmail(row.email) : "—"}</td>
                       );
                       if (col.key === "score") {
                         const s     = scoreLead(row);

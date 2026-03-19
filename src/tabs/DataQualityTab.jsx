@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 
 export default function DataQualityTab({ data }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
   const bc  = data['Bank Connected']  || [];
   const fs  = data['Form Submitted']  || [];
   const inc = data['Incomplete']      || [];
@@ -51,7 +53,7 @@ export default function DataQualityTab({ data }) {
 
   const issues = [];
   if (invalidEmails.length > 0)
-    issues.push({ level: 'error',   msg: `${invalidEmails.length} invalid email format${invalidEmails.length > 1 ? 's' : ''}`, detail: invalidEmails.slice(0, 3).map(r => r.email).join(', ') });
+    issues.push({ level: 'error',   msg: `${invalidEmails.length} invalid email format${invalidEmails.length > 1 ? 's' : ''}`, detail: invalidEmails.slice(0, 3).map(r => r.email ? maskEmail(r.email) : "").join(', ') });
   if (singleName.length > all.length * 0.2)
     issues.push({ level: 'warning', msg: `${singleName.length} leads with only a first name (no surname)`, detail: `${Math.round(singleName.length / all.length * 100)}% of total — may affect partner matching` });
   if (emailVerif.length < all.length * 0.8)
@@ -221,8 +223,8 @@ export default function DataQualityTab({ data }) {
               <div style={{ display: 'grid', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
                 {singleName.slice(0, 8).map((r, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px', background: T.surface2, borderRadius: 6, fontSize: 11 }}>
-                    <span style={{ fontWeight: 600, color: T.text }}>{r.name || '—'}</span>
-                    <span style={{ color: T.muted, fontFamily: 'monospace' }}>{r.email}</span>
+                    <span style={{ fontWeight: 600, color: T.text }}>{r.name ? maskName(r.name) : '—'}</span>
+                    <span style={{ color: T.muted, fontFamily: 'monospace' }}>{r.email ? maskEmail(r.email) : ""}</span>
                   </div>
                 ))}
                 {singleName.length > 8 && <div style={{ fontSize: 10, color: T.muted, textAlign: 'center', padding: '4px' }}>+{singleName.length - 8} more</div>}
@@ -273,7 +275,7 @@ export default function DataQualityTab({ data }) {
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: T.surface2, borderRadius: 7, borderLeft: `3px solid ${T.amber}` }}>
                     <span style={{ fontSize: 11, color: T.muted, fontFamily: "'IBM Plex Mono',monospace", width: 20, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: T.text, fontFamily: "'IBM Plex Mono',monospace", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.email}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: T.text, fontFamily: "'IBM Plex Mono',monospace", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.email ? maskEmail(g.email) : ""}</span>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       {cats.map(cat => (
                         <span key={cat} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, fontFamily: "'IBM Plex Mono',monospace",
