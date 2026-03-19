@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useId } from "react";
+
+// ─── window.storage polyfill ──────────────────────────────────────────────────
+// On Vercel / standalone deployments window.storage is undefined.
+// Fall back to localStorage so all persistence works outside the host platform.
+if (!window.storage) {
+  window.storage = {
+    get: (key) => Promise.resolve({ value: localStorage.getItem(key) }),
+    set: (key, value) => { try { localStorage.setItem(key, value); } catch(_){} return Promise.resolve(); },
+  };
+}
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
