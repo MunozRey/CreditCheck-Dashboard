@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTheme, getCatStyle } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { toTitleCase } from '../utils/format.js';
 import Card from '../components/Card.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -21,6 +22,7 @@ const DEFAULT_VISIBLE = new Set(["name", "email", "purpose", "created"]);
 export default function LeadsTab({ data, starredEmails = new Set(), toggleStar = () => {}, defaultCat = "Form Submitted", defaultSort = "created" }) {
   const { T } = useTheme();
   const CAT_STYLE = getCatStyle(T);
+  const { maskName, maskEmail } = usePrivacy();
 
   const [cat, setCat]               = useState(defaultCat);
   const [search, setSearch]         = useState("");
@@ -252,13 +254,13 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                       if (col.key === "name") return (
                         <td key="name" style={{ padding: "10px 14px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <Avatar name={toTitleCase(row.name)} />
-                            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>{row.name ? toTitleCase(row.name) : "—"}</span>
+                            <Avatar name={maskName(toTitleCase(row.name))} />
+                            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>{row.name ? maskName(toTitleCase(row.name)) : "—"}</span>
                           </div>
                         </td>
                       );
                       if (col.key === "email") return (
-                        <td key="email" style={{ padding: "10px 14px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{row.email || "—"}</td>
+                        <td key="email" style={{ padding: "10px 14px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>{row.email ? maskEmail(row.email) : "—"}</td>
                       );
                       if (col.key === "purpose") return (
                         <td key="purpose" style={{ padding: "10px 14px" }}>

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { VERTICALS_DEF, applyVehicleFilter as filterByVehicle, COUNTRY_META } from '../constants/verticals.js';
 
 export default function ExportModal({ onClose, data }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
 
   const bc   = data["Bank Connected"]  || [];
   const fs   = data["Form Submitted"]  || [];
@@ -70,6 +72,8 @@ export default function ExportModal({ onClose, data }) {
 
   // ── Export logic ──────────────────────────────────────────────────────────
   const getVal = (r, key) => {
+    if (key === "name")       return r.name ? maskName(r.name) : "";
+    if (key === "email")      return r.email ? maskEmail(r.email) : "";
     if (key === "category")   return catLabel(r);
     if (key === "country")    return (r.country || "").toUpperCase();
     if (key === "language")   return r.language || "";

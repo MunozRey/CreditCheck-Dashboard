@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
+import { PrivacyProvider, usePrivacy } from './context/PrivacyContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import UploadZone from './components/UploadZone.jsx';
 import ExportModal from './components/ExportModal.jsx';
@@ -52,8 +53,10 @@ const MAIN_TABS = [
 
 function AppInner() {
   const { T, theme, toggleTheme } = useTheme();
+  const { privacyMode, togglePrivacy }        = usePrivacy();
 
   const [data, setData]                       = useState(DEFAULT_DATA);
+  const [dashboard, setDashboard]             = useState("credit");
   const [tab, setTab]                         = useState("leads");
   const [showUpload, setUpload]               = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -202,6 +205,7 @@ function AppInner() {
   const fs         = (filteredData["Form Submitted"] || []).length;
   const incomplete = (filteredData["Incomplete"]     || []).length;
   const total      = bc + fs + incomplete;
+  const creditCount = bc + fs; // active leads badge for CreditCheck pill
 
   const allDates = [...(data["Bank Connected"]||[]),...(data["Form Submitted"]||[]),...(data["Incomplete"]||[])]
     .map(r=>r.created).filter(Boolean).sort();
@@ -269,7 +273,36 @@ function AppInner() {
             )}
           </div>
 
-          {/* Tab nav — filtered by settings visibility */}
+          {/* Dashboard switcher pills — CreditCheck | Mortgages */}
+          <div style={{ display:"flex", gap:3, marginRight:8, background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}`, flexShrink:0 }}>
+            {[
+              { id:"credit",    label:"CreditCheck", count: creditCount },
+              { id:"mortgages", label:"Mortgages",   count: 0 },
+            ].map(d => {
+              const active = dashboard === d.id;
+              return (
+                <button key={d.id} onClick={() => setDashboard(d.id)} style={{
+                  padding:"3px 12px", borderRadius:6, border:"none", cursor:"pointer",
+                  background: active ? T.surface : "transparent",
+                  color: active ? T.text : T.muted,
+                  fontWeight: active ? 600 : 400, fontSize:11,
+                  boxShadow: active ? `0 1px 4px ${T.border}` : "none",
+                  fontFamily:"'Geist',sans-serif", transition:"all .15s",
+                  display:"flex", alignItems:"center", gap:5,
+                }}>
+                  {d.label}
+                  {d.count > 0 && (
+                    <span style={{ background:T.blue, color:"#fff", borderRadius:9999, fontSize:9, padding:"0px 5px", fontWeight:700, lineHeight:"16px" }}>
+                      {d.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tab nav — only in credit mode */}
+          {dashboard === "credit" && (
           <nav data-cc="tabbar" style={{ display:"flex", gap:0, flex:1, height:"100%", alignItems:"stretch" }}>
             {MAIN_TABS.filter(t => settings[`tab${t.id.charAt(0).toUpperCase() + t.id.slice(1)}`] !== false).map(t => {
               const active = tab === t.id;
@@ -288,6 +321,7 @@ function AppInner() {
               );
             })}
           </nav>
+          )}
 
           {/* Right controls */}
           <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
@@ -334,6 +368,18 @@ function AppInner() {
               {theme === "light"
                 ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              }
+            </button>
+
+            {/* Privacy toggle — Hide / Show PII */}
+            <button
+              className="cc-btn"
+              onClick={togglePrivacy}
+              title={privacyMode ? "Show PII (privacy mode on)" : "Hide PII (click to mask names & emails)"}
+              style={{ width:32, height:32, borderRadius:7, border:`1px solid ${privacyMode ? T.amber : T.border}`, background:privacyMode ? `${T.amber}18` : T.surface2, display:"flex", alignItems:"center", justifyContent:"center", color:privacyMode ? T.amber : T.muted, flexShrink:0, cursor:"pointer", transition:"all .15s" }}>
+              {privacyMode
+                ? <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                : <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
               }
             </button>
 
@@ -488,15 +534,23 @@ function AppInner() {
 
       {/* ── Tab content ── */}
       <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
-        {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
-        {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
-        {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
-        {tab==="countries" && <CountriesTab    data={filteredData}/>}
-        {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
-        {tab==="insights"  && <InsightsTab     data={filteredData}/>}
-        {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
-        {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
-        {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+        {dashboard === "mortgages" ? (
+          <div style={{ padding:"60px 0", textAlign:"center", color:T.muted }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🏦</div>
+            <div style={{ fontSize:16, fontWeight:700, color:T.text, marginBottom:8, fontFamily:"'Playfair Display', serif" }}>Mortgages dashboard</div>
+            <div style={{ fontSize:13 }}>Upload a Mortgages XLSX to load this dashboard.</div>
+          </div>
+        ) : (<>
+          {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
+          {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
+          {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
+          {tab==="countries" && <CountriesTab    data={filteredData}/>}
+          {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
+          {tab==="insights"  && <InsightsTab     data={filteredData}/>}
+          {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
+          {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
+          {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+        </>)}
       </div>
     </div>
   );
@@ -505,9 +559,11 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ErrorBoundary>
-        <AppInner />
-      </ErrorBoundary>
+      <PrivacyProvider>
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      </PrivacyProvider>
     </ThemeProvider>
   );
 }

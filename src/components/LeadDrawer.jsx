@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { scoreLead } from '../utils/scoring.js';
 import Avatar from './Avatar.jsx';
 import { toTitleCase } from '../utils/format.js';
@@ -89,6 +90,7 @@ function FieldRow({ label, value, mono, T }) {
 
 export default function LeadDrawer({ lead, onClose }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
   const [copied, setCopied] = useState(false);
 
   if (!lead) return null;
@@ -128,10 +130,10 @@ export default function LeadDrawer({ lead, onClose }) {
 
         {/* Header */}
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12, background: T.surface2, flexShrink: 0 }}>
-          <Avatar name={toTitleCase(lead.name)} size={38} />
+          <Avatar name={maskName(toTitleCase(lead.name))} size={38} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {lead.name ? toTitleCase(lead.name) : "Unknown"}
+              {lead.name ? maskName(toTitleCase(lead.name)) : "Unknown"}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
@@ -185,7 +187,7 @@ export default function LeadDrawer({ lead, onClose }) {
           {/* Contact & Identity */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: T.muted, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'IBM Plex Mono',monospace" }}>Contact & Identity</div>
-            <FieldRow label="Email"       value={lead.email}                              mono T={T} />
+            <FieldRow label="Email"       value={lead.email ? maskEmail(lead.email) : null} mono T={T} />
             <FieldRow label="Age"         value={lead.age ? `${lead.age} years` : null}  T={T} />
             <FieldRow label="Language"    value={lead.language}                           T={T} />
             <FieldRow label="Country"     value={lead.country}                            T={T} />
