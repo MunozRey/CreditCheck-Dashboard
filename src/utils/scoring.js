@@ -11,12 +11,22 @@ import { T } from "../constants/themes.js";
 //   Age fit           0-5pts   (peak creditworthiness 30-55)
 // Grade distribution: A(≥75) ~20% · B(50-74) ~58% · C(30-49) ~20% · D(<30) rare
 
+// ─── INPUT SANITISATION ───────────────────────────────────────────────────────
+// Clamps to a finite, non-negative float within [0, max].
+// Guards against NaN, Infinity, negative values, and excessively large numbers
+// that could result from malformed or adversarially crafted XLSX data.
+function safePositiveFloat(val, max = 1_000_000) {
+  const n = parseFloat(val);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, max);
+}
+
 export function scoreLead(r) {
   let score = 0;
 
-  const inc = parseFloat(r.income)   || 0;
-  const exp = parseFloat(r.expenses) || 0;
-  const loan= parseFloat(r.loanAmount)|| 0;
+  const inc  = safePositiveFloat(r.income,     500_000);
+  const exp  = safePositiveFloat(r.expenses,   500_000);
+  const loan = safePositiveFloat(r.loanAmount, 500_000);
 
   // 1. Income adequacy (0-25pts)
   if      (inc >= 3500) score += 25;
@@ -59,7 +69,7 @@ export function scoreLead(r) {
   if ((r.name || "").trim().split(/\s+/).length >= 2) score += 5;
 
   // 7. Age fit (0-5pts)
-  const age = parseFloat(r.age) || 0;
+  const age = safePositiveFloat(r.age, 120);
   if      (age >= 30 && age <= 55) score += 5;
   else if (age >= 25 && age <= 65) score += 3;
   else if (age > 0)                score += 1;
@@ -72,10 +82,10 @@ export const GRADE_LABEL = s => s>=75 ? "A" : s>=50 ? "B" : s>=30 ? "C" : "D";
 
 export const EMP_OPTIONS = [
   {value:"all",           label:"All Employment"},
-  {value:"civil_servant", label:"🏛 Civil Servant"},
-  {value:"employed",      label:"💼 Employed"},
-  {value:"self_employed", label:"🧑‍💻 Self-Employed"},
-  {value:"retired",       label:"🧓 Retired"},
-  {value:"part_time",     label:"⏱ Part-Time"},
-  {value:"unemployed",    label:"⚠️ Unemployed"},
+  {value:"civil_servant", label:"Civil Servant"},
+  {value:"employed",      label:"Employed"},
+  {value:"self_employed", label:"Self-Employed"},
+  {value:"retired",       label:"Retired"},
+  {value:"part_time",     label:"Part-Time"},
+  {value:"unemployed",    label:"Unemployed"},
 ];

@@ -62,7 +62,11 @@ export default function DataQualityTab({ data }) {
     issues.push({ level: 'ok', msg: 'No critical issues detected', detail: 'Dataset looks clean and ready for partner delivery' });
 
   const issueColor  = { error: T.red,   warning: T.amber,               ok: T.green };
-  const issueIcon   = { error: '🔴',    warning: '🟡',                  ok: '✅' };
+  const issueIcon   = {
+    error:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke={T.red} strokeWidth="1.5"/><line x1="7" y1="4" x2="7" y2="8" stroke={T.red} strokeWidth="1.5" strokeLinecap="round"/><circle cx="7" cy="10.5" r="0.8" fill={T.red}/></svg>,
+    warning: <svg width="14" height="13" viewBox="0 0 14 13" fill="none"><path d="M7 1L13 12H1L7 1Z" stroke={T.amber} strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke={T.amber} strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill={T.amber}/></svg>,
+    ok:      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke={T.green} strokeWidth="1.5"/><path d="M4 7l2 2 4-4" stroke={T.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  };
   const issueBg     = { error: T.redBg, warning: T.amberBg,             ok: '#F0FDF4' };
   const issueBorder = { error: '#FCA5A5', warning: 'rgba(245,158,11,0.3)', ok: 'rgba(16,185,129,0.3)' };
 
@@ -142,7 +146,7 @@ export default function DataQualityTab({ data }) {
             <div style={{ display: 'grid', gap: 8 }}>
               {issues.map((issue, i) => (
                 <div key={i} style={{ padding: '10px 14px', background: issueBg[issue.level], border: `1px solid ${issueBorder[issue.level]}`, borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{issueIcon[issue.level]}</span>
+                  <span style={{ lineHeight: 0, flexShrink: 0, marginTop: 1 }}>{issueIcon[issue.level]}</span>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: issueColor[issue.level] }}>{issue.msg}</div>
                     <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>{issue.detail}</div>
