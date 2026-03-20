@@ -23,7 +23,7 @@ export function useLeadFilters({ allLeads, starredEmails = new Set(), defaultSor
   const [sortBy,         setSortBy]         = useState(defaultSort);
   const [sortDir,        setSortDir]        = useState("desc");
   const [starOnly,       setStarOnly]       = useState(false);
-  const [purposeFilter,  setPurposeFilter]  = useState("all");
+  const [loanPurposeFilters, setLoanPurposeFilters] = useState(new Set());
   const [empFilter,      setEmpFilter]      = useState("all");
   const [countryFilter,  setCountryFilter]  = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState("all");
@@ -47,7 +47,7 @@ export function useLeadFilters({ allLeads, starredEmails = new Set(), defaultSor
     }
     if (dateFrom)                rows = rows.filter(r => r.created && r.created.slice(0, 10) >= dateFrom);
     if (dateTo)                  rows = rows.filter(r => r.created && r.created.slice(0, 10) <= dateTo);
-    if (purposeFilter  !== "all") rows = rows.filter(r => r.purpose                === purposeFilter);
+    if (loanPurposeFilters.size > 0) rows = rows.filter(r => loanPurposeFilters.has(r.purpose));
     if (empFilter      !== "all") rows = rows.filter(r => (r.employment || "")     === empFilter);
     if (countryFilter  !== "all") rows = rows.filter(r => (r.country    || "")     === countryFilter);
     if (verifiedFilter === "verified")   rows = rows.filter(r =>  r.emailVerified);
@@ -62,13 +62,13 @@ export function useLeadFilters({ allLeads, starredEmails = new Set(), defaultSor
       else /* created */             cmp = (a.created || "").localeCompare(b.created || "");
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [allLeads, search, dateFrom, dateTo, sortBy, sortDir, purposeFilter, empFilter, countryFilter, verifiedFilter, starOnly, starredEmails]);
+  }, [allLeads, search, dateFrom, dateTo, sortBy, sortDir, loanPurposeFilters, empFilter, countryFilter, verifiedFilter, starOnly, starredEmails]);
 
   const hasFilters = !!(
     search ||
     dateFrom ||
     dateTo ||
-    purposeFilter  !== "all" ||
+    loanPurposeFilters.size > 0 ||
     empFilter      !== "all" ||
     countryFilter  !== "all" ||
     verifiedFilter !== "all" ||
@@ -79,7 +79,7 @@ export function useLeadFilters({ allLeads, starredEmails = new Set(), defaultSor
     setSearch("");
     setDateFrom("");
     setDateTo("");
-    setPurposeFilter("all");
+    setLoanPurposeFilters(new Set());
     setEmpFilter("all");
     setCountryFilter("all");
     setVerifiedFilter("all");
@@ -105,7 +105,7 @@ export function useLeadFilters({ allLeads, starredEmails = new Set(), defaultSor
     dateFrom,       setDateFrom,
     dateTo,         setDateTo,
     starOnly,       setStarOnly,
-    purposeFilter,  setPurposeFilter,
+    loanPurposeFilters, setLoanPurposeFilters,
     empFilter,      setEmpFilter,
     countryFilter,  setCountryFilter,
     verifiedFilter, setVerifiedFilter,
