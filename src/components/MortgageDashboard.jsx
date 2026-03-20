@@ -214,7 +214,7 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageLeads  = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const fmtPct = v => v !== null ? `${v.toFixed(1)}%` : "—";
+  const fmtPct = v => v !== null ? `${v.toFixed(1)}%` : "0.0%";
 
   // Eye icon SVG
   const EyeIcon = ({ open }) => open
@@ -283,27 +283,27 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
                 <tr key={l.email + i} style={{ background: i % 2 === 0 ? T.surface : T.surface2, borderBottom: `1px solid ${T.border}` }}>
                   {showPersonalData && (
                     <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                      <div style={{ fontWeight: FW.semibold, color: T.text, fontSize: FS.sm }}>{l.name || "—"}</div>
+                      <div style={{ fontWeight: FW.semibold, color: T.text, fontSize: FS.sm }}>{l.name || "N/A"}</div>
                       <div style={{ fontSize: FS.xs, color: T.muted, fontFamily: "'IBM Plex Mono',monospace" }}>{l.email}</div>
                     </td>
                   )}
                   <td style={{ padding: "8px 12px", color: T.muted, fontFamily: "'IBM Plex Mono',monospace", fontSize: FS.xs }}>{l.created || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub }}>{l.location || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub }}>{l.propertyType || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.propertyPrice !== null ? fmtEur(l.propertyPrice) : "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontVariantNumeric: "tabular-nums" }}>{l.downPayment !== null ? fmtEur(l.downPayment) : "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.loanAmount !== null ? fmtEur(l.loanAmount) : "—"}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub }}>{l.location || "N/A"}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub }}>{l.propertyType || "N/A"}</td>
+                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.propertyPrice !== null ? fmtEur(l.propertyPrice) : fmtEur(0)}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontVariantNumeric: "tabular-nums" }}>{l.downPayment !== null ? fmtEur(l.downPayment) : fmtEur(0)}</td>
+                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.loanAmount !== null ? fmtEur(l.loanAmount) : fmtEur(0)}</td>
                   <td style={{ padding: "8px 12px", fontWeight: FW.semibold, color: ltvColor(l.ltv, T), fontVariantNumeric: "tabular-nums" }}>{fmtPct(l.ltv)}</td>
                   <td style={{ padding: "8px 12px", fontWeight: FW.semibold, color: effortColor(l.effortRatio, T), fontVariantNumeric: "tabular-nums" }}>{fmtPct(l.effortRatio)}</td>
-                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.estimatedPayment !== null ? fmtEur(l.estimatedPayment) : "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, textAlign: "center" }}>{l.loanTermYears !== null ? `${l.loanTermYears}y` : "—"}</td>
-                  <td style={{ padding: "8px 12px", fontWeight: FW.semibold, color: ageMatColor(l.ageAtMaturity, T), textAlign: "center" }}>{l.ageAtMaturity !== null ? l.ageAtMaturity : "—"}</td>
-                  <td style={{ padding: "8px 12px", textAlign: "center", color: l.hasCobuyer ? T.green : T.muted }}>{l.numBuyers !== null ? l.numBuyers : "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.employment || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontVariantNumeric: "tabular-nums" }}>{l.monthlyIncome !== null ? fmtEur(l.monthlyIncome) : "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.purpose || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.searchStatus || "—"}</td>
-                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.timeline || "—"}</td>
+                  <td style={{ padding: "8px 12px", color: T.text, fontVariantNumeric: "tabular-nums" }}>{l.estimatedPayment !== null ? fmtEur(l.estimatedPayment) : fmtEur(0)}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, textAlign: "center" }}>{l.loanTermYears !== null ? `${l.loanTermYears}y` : "0y"}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: FW.semibold, color: ageMatColor(l.ageAtMaturity, T), textAlign: "center" }}>{l.ageAtMaturity !== null ? l.ageAtMaturity : 0}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "center", color: l.hasCobuyer ? T.green : T.muted }}>{l.numBuyers !== null ? l.numBuyers : 0}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.employment || "N/A"}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontVariantNumeric: "tabular-nums" }}>{l.monthlyIncome !== null ? fmtEur(l.monthlyIncome) : fmtEur(0)}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.purpose || "N/A"}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.searchStatus || "N/A"}</td>
+                  <td style={{ padding: "8px 12px", color: T.textSub, fontSize: FS.xs }}>{l.timeline || "N/A"}</td>
                   <td style={{ padding: "8px 12px", textAlign: "center" }}>
                     <span style={{ fontWeight: FW.bold, fontSize: FS.sm, color: tierColor(l.riskTier, T) }}>{l.riskScore}</span>
                   </td>
@@ -327,7 +327,135 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
           </div>
         )}
       </Card>
+      <div style={{ marginTop: 8, fontSize: FS.xs, color: T.muted, fontFamily: "'IBM Plex Mono',monospace" }}>
+        * Fields with no data are displayed as 0
+      </div>
     </div>
+  );
+}
+
+// ─── SCORING METHODOLOGY PANEL ────────────────────────────────────────────────
+function ScoringMethodologyPanel({ T }) {
+  const [open, setOpen] = useState(false);
+
+  const LTV_ROWS = [
+    { range: "≤ 60%",  pts: 30 },
+    { range: "61–70%", pts: 25 },
+    { range: "71–75%", pts: 20 },
+    { range: "76–80%", pts: 14 },
+    { range: "81–85%", pts: 8  },
+    { range: "86–90%", pts: 4  },
+    { range: "> 90%",  pts: 0  },
+  ];
+  const EFFORT_ROWS = [
+    { range: "< 20%",  pts: 25 },
+    { range: "20–24%", pts: 20 },
+    { range: "25–29%", pts: 15 },
+    { range: "30–34%", pts: 9  },
+    { range: "35–39%", pts: 4  },
+    { range: "≥ 40%",  pts: 0  },
+  ];
+  const DTI_ROWS = [
+    { range: "< 20%",  pts: 5 },
+    { range: "20–29%", pts: 3 },
+    { range: "30–39%", pts: 1 },
+    { range: "≥ 40%",  pts: 0 },
+  ];
+  const TIER_ROWS = [
+    { tier: "A", label: "PRIME",     min: 75, max: 100, color: T.green, bg: T.greenBg, desc: "Excellent risk profile — well within lending thresholds" },
+    { tier: "B", label: "STANDARD",  min: 55, max: 74,  color: T.blue,  bg: T.blue4,   desc: "Acceptable risk profile — meets standard bank criteria" },
+    { tier: "C", label: "WATCH",     min: 35, max: 54,  color: T.amber, bg: T.amberBg, desc: "Elevated risk — requires additional review" },
+    { tier: "D", label: "HIGH RISK", min: 0,  max: 34,  color: T.red,   bg: T.redBg,   desc: "High risk — likely outside standard lending parameters" },
+  ];
+
+  const rowPtsColor = pts => pts >= 20 ? T.green : pts >= 8 ? T.blue : pts >= 4 ? T.amber : T.red;
+
+  const CriteriaTable = ({ title, weight, rows }) => (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: FS.sm, fontWeight: FW.semibold, color: T.text }}>{title}</span>
+        <span style={{ ...LABEL_MONO, color: T.muted }}>max {weight} pts</span>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: FS.xs }}>
+        <thead>
+          <tr>
+            <th style={{ padding: "5px 10px", textAlign: "left",  ...LABEL_MONO, color: T.muted, borderBottom: `1px solid ${T.border}`, background: T.surface2 }}>Range</th>
+            <th style={{ padding: "5px 10px", textAlign: "right", ...LABEL_MONO, color: T.muted, borderBottom: `1px solid ${T.border}`, background: T.surface2 }}>Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+              <td style={{ padding: "5px 10px", color: T.textSub }}>{r.range}</td>
+              <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: FW.bold, color: rowPtsColor(r.pts), fontVariantNumeric: "tabular-nums" }}>{r.pts}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 20px", background: "none", border: "none", cursor: "pointer",
+          borderBottom: open ? `1px solid ${T.border}` : "none",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ ...LABEL_MONO, color: T.muted }}>G — Scoring Methodology</span>
+          <span style={{ fontSize: FS.xs, color: T.muted, fontFamily: "'IBM Plex Mono',monospace" }}>
+            LTV (30) · Effort Ratio (25) · Employment (20) · Age at Maturity (15) · Co-buyer &amp; DTI (10) · 100 pts total
+          </span>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s", flexShrink: 0 }}>
+          <path d="M6 9l6 6 6-6" stroke={T.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{ padding: 20 }}>
+          {/* Criteria breakdown */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 24 }}>
+            <CriteriaTable title="LTV (Loan-to-Value)" weight={30} rows={LTV_ROWS} />
+            <CriteriaTable title="Effort Ratio (payment / income)" weight={25} rows={EFFORT_ROWS} />
+            <CriteriaTable title="DTI (Debt-to-Income)" weight={5} rows={DTI_ROWS} />
+          </div>
+
+          {/* Final tier classification */}
+          <div>
+            <div style={{ ...LABEL_MONO, color: T.muted, marginBottom: 10 }}>Final Tier Classification</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: FS.xs }}>
+              <thead>
+                <tr>
+                  {["Tier", "Label", "Score Range", "Description"].map(h => (
+                    <th key={h} style={{ padding: "6px 12px", textAlign: "left", ...LABEL_MONO, color: T.muted, borderBottom: `1px solid ${T.border}`, background: T.surface2 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {TIER_ROWS.map(r => (
+                  <tr key={r.tier} style={{ borderBottom: `1px solid ${T.border}`, background: r.bg }}>
+                    <td style={{ padding: "7px 12px" }}>
+                      <span style={{ fontWeight: FW.bold, color: r.color, fontFamily: "'IBM Plex Mono',monospace" }}>{r.tier}</span>
+                    </td>
+                    <td style={{ padding: "7px 12px", fontWeight: FW.bold, color: r.color }}>{r.label}</td>
+                    <td style={{ padding: "7px 12px", fontVariantNumeric: "tabular-nums", color: T.textSub }}>{r.min}–{r.max} pts</td>
+                    <td style={{ padding: "7px 12px", color: T.textSub }}>{r.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ marginTop: 10, fontSize: FS.xs, color: T.muted, fontFamily: "'IBM Plex Mono',monospace" }}>
+              Employment stability (20 pts) and Age at maturity (15 pts) are also factored in · Co-buyer adds +5 pts to the DTI component
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -495,6 +623,9 @@ function RiesgoTab({ agg, T }) {
           </tbody>
         </table>
       </Card>
+
+      {/* G — Scoring Methodology (collapsible) */}
+      <ScoringMethodologyPanel T={T} />
     </div>
   );
 }
@@ -786,8 +917,6 @@ export default function MortgageDashboard({ data }) {
     ...(data["Incomplete"]     || []),
   ], [data]);
 
-  if (allLeads.length === 0) return <EmptyState T={T} />;
-
   const handleHotBanner = useCallback(() => {
     setTab("leads");
     setHotLeadsFilter(true);
@@ -797,6 +926,8 @@ export default function MortgageDashboard({ data }) {
     setTab(t);
     if (t !== "leads") setHotLeadsFilter(false);
   }, []);
+
+  if (allLeads.length === 0) return <EmptyState T={T} />;
 
   return (
     <div style={{ fontFamily: "'Geist',sans-serif", color: T.text }}>
