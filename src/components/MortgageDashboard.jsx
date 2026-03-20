@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import Card from './Card.jsx';
 import { mortgageAggregates, calcMonthlyPaymentAt, ASSUMED_RATE } from '../utils/mortgageParser.js';
 import { fmtEur } from '../utils/format.js';
@@ -172,12 +173,73 @@ function Th({ children, sortKey, sortBy, sortDir, onSort, T, style = {} }) {
   );
 }
 
+// Mortgage Purpose options
+const MORTGAGE_PURPOSE_OPTIONS = [
+  { value: "home_purchase",       label: "Home Purchase" },
+  { value: "secondary_residence", label: "Secondary Residence" },
+];
+
+// Mortgage Property Type options
+const MORTGAGE_PROP_TYPE_OPTIONS = [
+  { value: "second_hand", label: "Second Hand" },
+  { value: "new_build",   label: "New Build" },
+  { value: "undecided",   label: "Undecided" },
+];
+
+// ─── MORTGAGE CSV EXPORT ───────────────────────────────────────────────────────
+function exportMortgagesCSV(rows, privacyMode) {
+  const cols = [
+    'lead_id', 'application_date', 'purpose', 'property_type', 'property_location',
+    'property_price_eur', 'down_payment_eur', 'loan_term_years', 'number_of_buyers',
+    'employment_status', 'monthly_income_eur', 'existing_loans_eur', 'search_status', 'status',
+  ];
+  const comment = privacyMode
+    ? '# Export generated with privacy mode ON — personal data anonymized per GDPR/PSD2 guidelines'
+    : '# Export generated — contains personal data, handle per your data protection policy';
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csvRows = rows.map((r, i) => {
+    const leadId = privacyMode
+      ? `LEAD-${String(i + 1).padStart(3, '0')}`
+      : (r.id || r.email || `lead-${i + 1}`);
+    return [
+      leadId,
+      r.created        || '',
+      r.purpose        || '',
+      r.propertyType   || '',
+      r.location       || '',
+      r.propertyPrice  ?? '',
+      r.downPayment    ?? '',
+      r.loanTermYears  ?? '',
+      r.numBuyers      ?? '',
+      r.employment     || '',
+      r.monthlyIncome  ?? '',
+      r.existingLoans  ?? '',
+      r.searchStatus   || '',
+      r.status         || '',
+    ].map(esc).join(',');
+  });
+  const csv = [comment, cols.join(','), ...csvRows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `mortgages_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── TAB 1: APPLICATIONS ──────────────────────────────────────────────────────
 function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPersonalData, setShowPersonalData, T }) {
-  const [search,  setSearch]  = useState("");
-  const [sortBy,  setSortBy]  = useState("created");
-  const [sortDir, setSortDir] = useState("desc");
-  const [page,    setPage]    = useState(0);
+  const { privacyMode } = usePrivacy();
+  const [search,        setSearch]        = useState("");
+  const [sortBy,        setSortBy]        = useState("created");
+  const [sortDir,       setSortDir]       = useState("desc");
+  const [page,          setPage]          = useState(0);
+  const [purposeFilter, setPurposeFilter] = useState("all");
+  const [propTypeFilter, setPropTypeFilter] = useState("all");
+  const [topN,          setTopN]          = useState(0);
   const PAGE_SIZE = 25;
 
   const onSort = useCallback(key => {
@@ -202,6 +264,8 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
         (l.location || "").toLowerCase().includes(q)
       );
     }
+    if (purposeFilter !== "all")  leads = leads.filter(l => (l.purpose      || "").toLowerCase() === purposeFilter);
+    if (propTypeFilter !== "all") leads = leads.filter(l => (l.propertyType || "").toLowerCase() === propTypeFilter);
     return [...leads].sort((a, b) => {
       let va = a[sortBy], vb = b[sortBy];
       if (va === null || va === undefined) va = sortDir === "asc" ? Infinity : -Infinity;
@@ -209,17 +273,25 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
       if (typeof va === "string") return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
       return sortDir === "asc" ? va - vb : vb - va;
     });
-  }, [allLeads, hotLeadsFilter, search, sortBy, sortDir]);
+  }, [allLeads, hotLeadsFilter, search, sortBy, sortDir, purposeFilter, propTypeFilter]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pageLeads  = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Apply topN as the final slice after all filters + sort
+  const topNLeads  = topN > 0 ? filtered.slice(0, topN) : filtered;
+  const totalPages = Math.ceil(topNLeads.length / PAGE_SIZE);
+  const pageLeads  = topNLeads.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const fmtPct = v => v !== null ? `${v.toFixed(1)}%` : "0.0%";
+
+  const handleExport = useCallback(() => {
+    exportMortgagesCSV(topNLeads, privacyMode);
+  }, [topNLeads, privacyMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Eye icon SVG
   const EyeIcon = ({ open }) => open
     ? <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
     : <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+
+  const selStyle = { padding: "7px 10px", borderRadius: R.md, border: `1px solid ${T.border}`, background: T.surface2, color: T.text, fontSize: FS.sm, outline: "none", fontFamily: "'Geist',sans-serif", cursor: "pointer" };
 
   return (
     <div>
@@ -228,7 +300,26 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
         <input
           value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
           placeholder="Search name, location..."
-          style={{ padding: "7px 12px", borderRadius: R.md, border: `1px solid ${T.border}`, background: T.surface2, color: T.text, fontSize: FS.sm, outline: "none", minWidth: 260, fontFamily: "'Geist',sans-serif" }}
+          style={{ padding: "7px 12px", borderRadius: R.md, border: `1px solid ${T.border}`, background: T.surface2, color: T.text, fontSize: FS.sm, outline: "none", minWidth: 220, fontFamily: "'Geist',sans-serif" }}
+        />
+        {/* Purpose filter */}
+        <select value={purposeFilter} onChange={e => { setPurposeFilter(e.target.value); setPage(0); }} style={selStyle}>
+          <option value="all">All purposes</option>
+          {MORTGAGE_PURPOSE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {/* Property Type filter */}
+        <select value={propTypeFilter} onChange={e => { setPropTypeFilter(e.target.value); setPage(0); }} style={selStyle}>
+          <option value="all">All property types</option>
+          {MORTGAGE_PROP_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {/* Top N input */}
+        <input
+          type="number" min={1}
+          value={topN || ''}
+          onChange={e => { setTopN(Math.max(0, parseInt(e.target.value) || 0)); setPage(0); }}
+          placeholder="Top N"
+          title="Show top N applications (leave empty for all)"
+          style={{ ...selStyle, width: 72, textAlign: "center" }}
         />
         {hotLeadsFilter && (
           <button onClick={() => setHotLeadsFilter(false)} style={{ padding: "5px 12px", borderRadius: R.md, border: `1px solid ${T.amber}`, background: T.amberBg, color: T.amber, fontSize: FS.xs, fontWeight: FW.bold, cursor: "pointer" }}>
@@ -242,7 +333,22 @@ function SolicitudesTab({ allLeads, hotLeadsFilter, setHotLeadsFilter, showPerso
           <EyeIcon open={showPersonalData} />
           {showPersonalData ? "Hide personal data" : "Show personal data"}
         </button>
-        <span style={{ marginLeft: "auto", ...LABEL_MONO, color: T.muted }}>{filtered.length} applications</span>
+        {/* Export button */}
+        <button
+          onClick={handleExport}
+          title={privacyMode ? "Export CSV with privacy mode ON" : "Export CSV"}
+          style={{
+            display: "flex", alignItems: "center", gap: 5, padding: "5px 12px",
+            borderRadius: R.md, cursor: "pointer", fontSize: FS.xs, fontWeight: FW.semibold,
+            border: `1px solid ${privacyMode ? T.amber : T.border}`,
+            background: privacyMode ? `${T.amber}15` : T.surface2,
+            color: privacyMode ? T.amber : T.muted,
+            fontFamily: "'Geist',sans-serif",
+          }}
+        >
+          {privacyMode ? "🔒 Export (Private)" : "📤 Export"}
+        </button>
+        <span style={{ marginLeft: "auto", ...LABEL_MONO, color: T.muted }}>{topNLeads.length} applications</span>
       </div>
 
       {/* Table */}

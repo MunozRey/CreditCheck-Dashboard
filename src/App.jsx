@@ -364,7 +364,7 @@ function AppInner() {
           {/* Dashboard switcher pills — CreditCheck | Mortgages */}
           <div style={{ display:"flex", gap:3, marginRight:8, background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}`, flexShrink:0 }}>
             {[
-              { id:"credit",    label:"CreditCheck" },
+              { id:"credit",    label:"Loans" },
               { id:"mortgages", label:"Mortgages"   },
             ].map(d => {
               const active = dashboard === d.id;

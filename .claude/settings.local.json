@@ -23,7 +23,9 @@
       "Bash(\"/c/Program Files/GitHub:*)",
       "Bash(node_modules/.bin/vite build:*)",
       "Read(//c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard/**)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }

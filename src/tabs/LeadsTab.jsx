@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTheme, getCatStyle } from '../context/ThemeContext.jsx';
 import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { toTitleCase } from '../utils/format.js';
-import { scoreLead, GRADE_COLOR, GRADE_LABEL } from '../utils/scoring.js';
+import { scoreLead } from '../utils/scoring.js';
 import { useLeadFilters } from '../hooks/useLeadFilters.js';
 import Card from '../components/Card.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -18,9 +18,77 @@ function savePrefs(patch) {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify({ ...readPrefs(), ...patch })); } catch(_) {}
 }
 
+// Loan Purpose options — data-driven segmentation ordered by frequency
+const LOAN_PURPOSE_OPTIONS = [
+  { value: 'personal_expenses', label: 'Personal Expenses' },
+  { value: 'other',             label: 'Other' },
+  { value: 'home_improvement',  label: 'Home Improvement' },
+  { value: 'refinance',         label: 'Refinance' },
+  { value: 'vehicle',           label: 'Vehicle' },
+  { value: 'holiday',           label: 'Holiday' },
+  { value: 'education',         label: 'Education' },
+  { value: 'it_equipment',      label: 'IT Equipment' },
+];
+
+// ── Privacy-aware CSV export ───────────────────────────────────────────────────
+function anonymizeName(fullName) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(' ');
+  const first = parts[0] || '';
+  const last  = parts[1] || '';
+  const mask  = (str) => str.length <= 2 ? str : str.slice(0, 2) + '*'.repeat(str.length - 2);
+  return last ? `${mask(first)} ${mask(last)}` : mask(first);
+}
+
+function exportLoansCSV(rows, privacyMode) {
+  const cols = [
+    'lead_id', 'application_date', 'loan_amount_requested', 'loan_purpose',
+    'installment_months', 'employment_status', 'monthly_net_income',
+    'monthly_expenses', 'existing_loan_payments', 'estimated_monthly_savings',
+    'civil_status', 'financial_dependants', 'residential_status',
+    'status', 'verification_job_status',
+  ];
+  const comment = privacyMode
+    ? '# Export generated with privacy mode ON — personal data anonymized per GDPR/PSD2 guidelines'
+    : '# Export generated — contains personal data, handle per your data protection policy';
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csvRows = rows.map((r, i) => {
+    const leadId = privacyMode
+      ? `LEAD-${String(i + 1).padStart(3, '0')}`
+      : (r.email || `lead-${i + 1}`);
+    return [
+      leadId,
+      r.created      || '',
+      r.loanAmount   ?? '',
+      r.purpose      || '',
+      r.loanMonths   ?? '',
+      r.employment   || '',
+      r.income       ?? '',
+      r.expenses     ?? '',
+      r.existingLoans ?? '',
+      r.emergency    ?? '',
+      '',              // civil_status (not in schema)
+      '',              // financial_dependants (not in schema)
+      r.residential  || '',
+      r.status       || '',
+      r.verif        || '',
+    ].map(esc).join(',');
+  });
+  const csv = [comment, cols.join(','), ...csvRows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `loans_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // Default visible columns
 const ALL_COLUMNS = [
-  { key: "name",       label: "Name",       always: true },
+  { key: "name",       label: "Name",       always: true  },
   { key: "email",      label: "Email",      always: false },
   { key: "score",      label: "Score",      always: false },
   { key: "purpose",    label: "Purpose",    always: false },
@@ -34,19 +102,23 @@ const DEFAULT_VISIBLE = new Set(["name", "email", "score", "created"]);
 export default function LeadsTab({ data, starredEmails = new Set(), toggleStar = () => {}, defaultCat = "Form Submitted", defaultSort = "created" }) {
   const { T } = useTheme();
   const CAT_STYLE = getCatStyle(T);
-  const { maskName, maskEmail } = usePrivacy();
+  const { privacyMode, maskName, maskEmail } = usePrivacy();
 
-  const [cat, setCat]               = useState(() => readPrefs().tableCategory || "Bank Connected");
-  const [tableOpen, setTableOpen]   = useState(true);
-  const [visibleCols, setVisibleCols] = useState(() => {
+  const [cat, setCat]                       = useState(() => readPrefs().tableCategory || "Bank Connected");
+  const [tableOpen, setTableOpen]           = useState(true);
+  const [visibleCols, setVisibleCols]       = useState(() => {
     const prefs = readPrefs();
     return Array.isArray(prefs.visibleColumns) ? new Set(prefs.visibleColumns) : DEFAULT_VISIBLE;
   });
-  const [showColMenu, setShowColMenu] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
-  const colMenuRef = useRef(null);
+  const [showColMenu,     setShowColMenu]     = useState(false);
+  const [showPurposeMenu, setShowPurposeMenu] = useState(false);
+  const [selectedLead,    setSelectedLead]    = useState(null);
+  const [topN,            setTopN]            = useState(0);
 
-  // ── Persist category + columns (declared before their deps are in scope) ──
+  const colMenuRef     = useRef(null);
+  const purposeMenuRef = useRef(null);
+
+  // ── Persist category + columns ────────────────────────────────────────────
   useEffect(() => { savePrefs({ tableCategory: cat }); }, [cat]);
   useEffect(() => { savePrefs({ visibleColumns: [...visibleCols] }); }, [visibleCols]);
 
@@ -58,24 +130,44 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     return () => document.removeEventListener("mousedown", handler);
   }, [showColMenu]);
 
+  // Close purpose menu on outside click
+  useEffect(() => {
+    if (!showPurposeMenu) return;
+    const handler = (e) => { if (purposeMenuRef.current && !purposeMenuRef.current.contains(e.target)) setShowPurposeMenu(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPurposeMenu]);
+
   const allLeads = useMemo(() => (data[cat] || []).map(r => ({ ...r, cat })), [data, cat]);
 
+  // Per-purpose counts from full category (not filtered) for count badges
+  const purposeCounts = useMemo(() => {
+    const counts = {};
+    for (const r of allLeads) {
+      if (r.purpose) counts[r.purpose] = (counts[r.purpose] || 0) + 1;
+    }
+    return counts;
+  }, [allLeads]);
+
   const {
-    search, setSearch,
-    dateFrom, setDateFrom,
-    dateTo, setDateTo,
-    starOnly, setStarOnly,
-    purposeFilter, setPurposeFilter,
-    empFilter, setEmpFilter,
-    countryFilter, setCountryFilter,
-    verifiedFilter, setVerifiedFilter,
-    sortBy, toggleSort, sortIndicator,
-    allPurposes, allCountries, allEmp,
-    filtered, hasFilters, clearFilters,
+    search,             setSearch,
+    dateFrom,           setDateFrom,
+    dateTo,             setDateTo,
+    starOnly,           setStarOnly,
+    loanPurposeFilters, setLoanPurposeFilters,
+    empFilter,          setEmpFilter,
+    countryFilter,      setCountryFilter,
+    verifiedFilter,     setVerifiedFilter,
+    sortBy,             toggleSort, sortIndicator,
+    allCountries,       allEmp,
+    filtered,           hasFilters, clearFilters,
   } = useLeadFilters({ allLeads, starredEmails, defaultSort: readPrefs().tableSort || defaultSort || "created" });
 
   // sortBy comes from useLeadFilters — this effect MUST be after the hook call
   useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]); // eslint-disable-line react-hooks/rules-of-hooks
+
+  // Apply topN as the final slice — runs after all other filters
+  const visibleRows = topN > 0 ? filtered.slice(0, topN) : filtered;
 
   const toggleCol = (key) => {
     setVisibleCols(prev => {
@@ -85,9 +177,19 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     });
   };
 
+  const togglePurpose = useCallback((value) => {
+    setLoanPurposeFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value); else next.add(value);
+      return next;
+    });
+  }, [setLoanPurposeFilters]);
+
   const visibleColList = ALL_COLUMNS.filter(c => c.always || visibleCols.has(c.key));
 
   const inputStyle = { border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, outline: "none", background: T.surface2, fontFamily: "'Geist',sans-serif" };
+
+  const activePurposeCount = loanPurposeFilters.size;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "188px 1fr", gap: 16 }}>
@@ -98,7 +200,7 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
         {["Bank Connected", "Form Submitted", "Incomplete"].map(c => {
           const count = (data[c] || []).length, active = cat === c, s = CAT_STYLE[c];
           return (
-            <button key={c} onClick={() => { setCat(c); clearFilters(); }} style={{
+            <button key={c} onClick={() => { setCat(c); clearFilters(); setTopN(0); }} style={{
               width: "100%", textAlign: "left",
               background: active ? `${s.color}10` : "none",
               border: `1px solid ${active ? `${s.color}30` : "transparent"}`,
@@ -120,8 +222,8 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
             <span style={{ fontWeight: 800, fontSize: 15, color: T.text }}>{cat}</span>
-            <Chip color={CAT_STYLE[cat].color} bg={CAT_STYLE[cat].light}>{filtered.length}</Chip>
-            {filtered.length !== allLeads.length && <span style={{ fontSize: 11, color: T.muted }}>of {allLeads.length}</span>}
+            <Chip color={CAT_STYLE[cat].color} bg={CAT_STYLE[cat].light}>{visibleRows.length}</Chip>
+            {visibleRows.length !== allLeads.length && <span style={{ fontSize: 11, color: T.muted }}>of {allLeads.length}</span>}
           </div>
 
           {tableOpen && (<>
@@ -129,10 +231,35 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
             <span style={{ fontSize: 11, color: T.muted }}>→</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
-            {hasFilters && (
-              <button onClick={clearFilters} style={{ fontSize: 11, color: T.red, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "4px 6px" }}>✕ Clear</button>
+            {/* Top N */}
+            <input
+              type="number" min={1}
+              value={topN || ''}
+              onChange={e => setTopN(Math.max(0, parseInt(e.target.value) || 0))}
+              placeholder="Top N"
+              title="Show top N leads (leave empty for all)"
+              style={{ ...inputStyle, width: 72, textAlign: "center" }}
+            />
+            {(hasFilters || topN > 0) && (
+              <button onClick={() => { clearFilters(); setTopN(0); }} style={{ fontSize: 11, color: T.red, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "4px 6px" }}>✕ Clear</button>
             )}
           </>)}
+
+          {/* Export button */}
+          <button
+            onClick={() => exportLoansCSV(visibleRows, privacyMode)}
+            title={privacyMode ? "Export CSV with privacy mode ON" : "Export CSV"}
+            style={{
+              display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
+              borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600,
+              border: `1px solid ${privacyMode ? T.amber : T.border}`,
+              background: privacyMode ? `${T.amber}15` : T.surface2,
+              color: privacyMode ? T.amber : T.textSub,
+              fontFamily: "'Geist',sans-serif", flexShrink: 0,
+            }}
+          >
+            {privacyMode ? "🔒 Export (Private)" : "📤 Export"}
+          </button>
 
           <button onClick={() => setTableOpen(v => !v)} title={tableOpen ? "Collapse table" : "Expand table"} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7,
@@ -160,12 +287,61 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
               {starOnly ? "★" : "☆"} Starred{starOnly && starredEmails.size > 0 ? ` (${[...starredEmails].filter(e => allLeads.some(r => r.email === e)).length})` : ""}
             </button>
 
-            {allPurposes.length > 0 && (
-              <select value={purposeFilter} onChange={e => setPurposeFilter(e.target.value)} style={{ ...inputStyle, maxWidth: 140 }}>
-                <option value="all">All purposes</option>
-                {allPurposes.map(p => <option key={p} value={p}>{p.replace(/_/g, " ")}</option>)}
-              </select>
-            )}
+            {/* Loan Purpose multi-select dropdown */}
+            <div style={{ position: "relative" }} ref={purposeMenuRef}>
+              <button
+                onClick={() => setShowPurposeMenu(v => !v)}
+                style={{
+                  ...inputStyle, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
+                  border: `1px solid ${activePurposeCount > 0 ? T.blue : T.border}`,
+                  background: activePurposeCount > 0 ? `${T.blue}10` : T.surface2,
+                  color: activePurposeCount > 0 ? T.blue : T.muted,
+                }}
+              >
+                Loan Purpose
+                {activePurposeCount > 0 && (
+                  <span style={{ background: T.blue, color: "#fff", borderRadius: 9999, fontSize: 9, padding: "1px 5px", fontWeight: 700, lineHeight: "14px" }}>{activePurposeCount}</span>
+                )}
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 2, flexShrink: 0 }}>
+                  <path d="M2 4.5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {showPurposeMenu && (
+                <div style={{
+                  position: "absolute", left: 0, top: "calc(100% + 4px)",
+                  background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
+                  padding: "8px 0", zIndex: 60, minWidth: 230,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                }}>
+                  {LOAN_PURPOSE_OPTIONS.map(opt => {
+                    const count   = purposeCounts[opt.value] || 0;
+                    const checked = loanPurposeFilters.has(opt.value);
+                    return (
+                      <label key={opt.value} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        gap: 8, padding: "6px 14px", cursor: "pointer", fontSize: 12, color: T.text,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="checkbox" checked={checked} onChange={() => togglePurpose(opt.value)} style={{ accentColor: T.blue, flexShrink: 0 }} />
+                          {opt.label}
+                        </div>
+                        <span style={{ fontSize: 10, color: T.muted, fontFamily: "'IBM Plex Mono',monospace", background: T.surface2, borderRadius: 4, padding: "1px 5px", minWidth: 24, textAlign: "center" }}>{count}</span>
+                      </label>
+                    );
+                  })}
+                  {activePurposeCount > 0 && (
+                    <div style={{ borderTop: `1px solid ${T.border}`, margin: "6px 0 0" }}>
+                      <button
+                        onClick={() => { setLoanPurposeFilters(new Set()); setShowPurposeMenu(false); }}
+                        style={{ width: "100%", background: "none", border: "none", padding: "7px 14px", fontSize: 11, color: T.red, cursor: "pointer", textAlign: "left", fontFamily: "'Geist',sans-serif" }}
+                      >
+                        Clear selection
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {allEmp.length > 0 && (
               <select value={empFilter} onChange={e => setEmpFilter(e.target.value)} style={{ ...inputStyle, maxWidth: 140 }}>
@@ -242,7 +418,7 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row, i) => (
+                {visibleRows.map((row, i) => (
                   <tr key={row.email || `nomail-${i}-${row.name}`}
                     style={{ borderBottom: `1px solid ${T.surface2}`, transition: "background .1s", cursor: "pointer" }}
                     onClick={() => setSelectedLead(row)}
@@ -305,7 +481,7 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                     <td style={{ padding: "10px 8px", color: T.border, fontSize: 14, textAlign: "center" }}>›</td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {visibleRows.length === 0 && (
                   <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>
                     {starOnly ? "No starred leads in this category" : hasFilters ? "No leads match the current filters — try clearing some filters" : `No leads in ${cat}`}
                   </td></tr>
