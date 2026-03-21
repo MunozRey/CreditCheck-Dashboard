@@ -106,27 +106,6 @@ export default function ReportModal({ data, onClose }) {
               );
             })}
 
-            {/* Raw export link */}
-            <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 8, paddingTop: 8 }}>
-              <div style={{ fontSize: 9, color: T.muted, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, padding: "4px 12px 6px", fontFamily: "'IBM Plex Mono',monospace" }}>
-                Raw Export
-              </div>
-              {[
-                { fmt: "csv",       label: "CSV" },
-                { fmt: "tsv",       label: "TSV" },
-                { fmt: "json",      label: "JSON" },
-                { fmt: "pipedrive", label: "Pipedrive" },
-              ].map(({ fmt, label }) => (
-                <button key={fmt} onClick={() => rawExport(fmt, data)} style={{
-                  width: "100%", textAlign: "left", padding: "7px 12px",
-                  borderRadius: 6, border: "none", cursor: "pointer", marginBottom: 1,
-                  background: "transparent", fontSize: 11, color: T.textSub,
-                  fontFamily: "'IBM Plex Mono',monospace",
-                }}>
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Report cards */}
@@ -252,40 +231,3 @@ function isInVertical(lead, report) {
   return true;
 }
 
-// Raw data export — CSV / TSV / JSON / Pipedrive
-function rawExport(fmt, data) {
-  const all = [
-    ...(data["Bank Connected"]  || []).map(r => ({ ...r, category: "Bank Connected" })),
-    ...(data["Form Submitted"]  || []).map(r => ({ ...r, category: "Form Submitted" })),
-    ...(data["Incomplete"]      || []).map(r => ({ ...r, category: "Incomplete" })),
-  ];
-  if (!all.length) return;
-
-  const fields  = ["name","email","country","language","category","purpose","loanAmount","loanMonths","income","expenses","employment","age"];
-  const headers = ["Name","Email","Country","Language","Category","Loan Purpose","Loan Amount (€)","Term (months)","Monthly Income (€)","Monthly Expenses (€)","Employment","Age"];
-  const q = v => { const s = String(v ?? ""); return s.includes(",") || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
-
-  let content, filename, mime;
-  if (fmt === "csv") {
-    content  = [headers.join(","), ...all.map(r => fields.map(f => q(r[f] ?? "")).join(","))].join("\n");
-    filename = "creditcheck-leads.csv"; mime = "text/csv";
-  } else if (fmt === "tsv") {
-    content  = [headers.join("\t"), ...all.map(r => fields.map(f => String(r[f] ?? "")).join("\t"))].join("\n");
-    filename = "creditcheck-leads.tsv"; mime = "text/tab-separated-values";
-  } else if (fmt === "json") {
-    content  = JSON.stringify(all.map(r => Object.fromEntries(fields.map((f,i) => [headers[i], r[f] ?? ""]))), null, 2);
-    filename = "creditcheck-leads.json"; mime = "application/json";
-  } else {
-    const today = new Date().toISOString().slice(0,10);
-    content = ["Name,Email,Lead Title,Created",
-      ...all.filter(r => r.email).map(r => `${q(r.name||"")},${q(r.email||"")},${q("CreditCheck - "+r.category)},${q((r.created||"").slice(0,10))}`)
-    ].join("\n");
-    filename = `pipedrive_import_${today}.csv`; mime = "text/csv";
-  }
-
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(new Blob([content], { type: mime })),
-    download: filename,
-  });
-  document.body.appendChild(a); a.click(); a.remove();
-}

@@ -6,6 +6,7 @@ import AuthGate from './components/AuthGate.jsx';             // C-01
 import GdprBanner, { ClearDataButton } from './components/GdprBanner.jsx'; // C-03
 import UploadZone from './components/UploadZone.jsx';
 import ReportModal from './components/ReportModal.jsx';
+import ExportModal from './components/ExportModal.jsx';
 import KeyboardHelp from './components/KeyboardHelp.jsx';
 import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
@@ -66,8 +67,11 @@ function AppInner() {
   const [tab, setTab]                         = useState("leads");
   const [showUpload, setUpload]               = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showExportMenu,  setShowExportMenu]  = useState(false);
   const [showKeyHelp,     setShowKeyHelp]     = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
+  const exportMenuRef = useRef(null);
 
   // ── Dashboard settings — persisted ────────────────────────────────────────
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -314,16 +318,27 @@ function AppInner() {
     window.storage.set("cc_rows", JSON.stringify(creditData)).catch(() => {});
   }, []);
 
+  // ── Close export dropdown on outside click ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) { setShowKeyHelp(v => !v); return; }
-      if (e.key === "Escape") { setShowKeyHelp(false); setShowReportModal(false); setUpload(false); return; }
+      if (e.key === "Escape") { setShowKeyHelp(false); setShowReportModal(false); setShowExportModal(false); setShowExportMenu(false); setUpload(false); return; }
       if (e.key === "d" || e.key === "D") { toggleTheme(); return; }
       if (e.key === "u" || e.key === "U") { setUpload(v => !v); return; }
-      if (e.key === "e" || e.key === "E") { setShowReportModal(true); return; }
+      if (e.key === "e" || e.key === "E") { setShowExportModal(true); return; }
       const tabKeys = ["1","2","3","4","5","6","7","8","9"];
       const idx = tabKeys.indexOf(e.key);
       if (idx !== -1 && idx < MAIN_TABS.length) setTab(MAIN_TABS[idx].id);
@@ -520,11 +535,41 @@ function AppInner() {
               window.location.reload();
             }} />
 
-            {/* Export button */}
-            <button className="cc-btn" onClick={() => setShowReportModal(true)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:T.surface2, border:`1px solid ${T.border}`, borderRadius:7, color:T.textSub, fontWeight:500, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1 }}>
-              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 1v7M3 5.5l3 3 3-3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Export
-            </button>
+            {/* Unified Export dropdown */}
+            <div ref={exportMenuRef} style={{ position:"relative" }}>
+              <button
+                className="cc-btn"
+                onClick={() => setShowExportMenu(v => !v)}
+                style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:showExportMenu?`${T.blue}15`:T.surface2, border:`1px solid ${showExportMenu?T.blue:T.border}`, borderRadius:7, color:showExportMenu?T.blue:T.textSub, fontWeight:500, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1 }}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 1v7M3 5.5l3 3 3-3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Export
+                <svg width="8" height="8" fill="none" viewBox="0 0 8 8" style={{ transition:"transform .15s", transform:showExportMenu?"rotate(180deg)":"rotate(0deg)" }}><path d="M1 2.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {showExportMenu && (
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, boxShadow:`0 8px 24px rgba(0,0,0,0.15)`, zIndex:200, minWidth:190, overflow:"hidden" }}>
+                  <div style={{ padding:"8px 12px 4px", fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.2, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace" }}>Data Export</div>
+                  <button onClick={() => { setShowExportModal(true); setShowExportMenu(false); }} style={{ width:"100%", textAlign:"left", padding:"8px 12px", background:"transparent", border:"none", cursor:"pointer", fontSize:12, color:T.text, fontFamily:"'Geist',sans-serif", display:"flex", alignItems:"center", gap:8 }}
+                    onMouseEnter={e => e.currentTarget.style.background=T.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background="transparent"}
+                  >
+                    <svg width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M6 1v7M3 5.5l3 3 3-3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke={T.blue} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span>Export Data</span>
+                    <span style={{ marginLeft:"auto", fontSize:9, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>CSV · TSV · JSON</span>
+                  </button>
+                  <div style={{ height:1, background:T.border, margin:"4px 0" }}/>
+                  <div style={{ padding:"4px 12px 4px", fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.2, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace" }}>Reports</div>
+                  <button onClick={() => { setShowReportModal(true); setShowExportMenu(false); }} style={{ width:"100%", textAlign:"left", padding:"8px 12px 10px", background:"transparent", border:"none", cursor:"pointer", fontSize:12, color:T.text, fontFamily:"'Geist',sans-serif", display:"flex", alignItems:"center", gap:8 }}
+                    onMouseEnter={e => e.currentTarget.style.background=T.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background="transparent"}
+                  >
+                    <svg width="12" height="12" fill="none" viewBox="0 0 12 12"><rect x="1.5" y="1" width="9" height="10" rx="1.5" stroke={T.muted} strokeWidth="1.2"/><path d="M3.5 4h5M3.5 6.5h5M3.5 9h3" stroke={T.muted} strokeWidth="1.2" strokeLinecap="round"/></svg>
+                    <span>Partner Reports</span>
+                    <span style={{ marginLeft:"auto", fontSize:9, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>HTML</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Upload button */}
             <button className="cc-btn" onClick={() => setUpload(v => !v)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:showUpload?T.blue:T.surface2, border:`1px solid ${showUpload?T.blue:T.border}`, borderRadius:7, color:showUpload?"#fff":T.textSub, fontWeight:600, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1, boxShadow:showUpload?"0 0 0 3px rgba(59,130,246,0.15)":"none" }}>
@@ -668,7 +713,12 @@ function AppInner() {
         }}
       />
 
-      {/* Report / Export modal */}
+      {/* Export Data modal */}
+      {showExportModal && (
+        <ExportModal data={filteredData} onClose={() => setShowExportModal(false)}/>
+      )}
+
+      {/* Partner Reports modal */}
       {showReportModal && (
         <ReportModal data={filteredData} onClose={() => setShowReportModal(false)}/>
       )}
