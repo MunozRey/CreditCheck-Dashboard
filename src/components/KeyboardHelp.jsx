@@ -7,7 +7,7 @@ const SHORTCUTS = [
   { key: "Esc",   desc: "Close modals / drawers / this overlay" },
   { key: "D",     desc: "Toggle dark / light mode" },
   { key: "U",     desc: "Toggle upload panel" },
-  { key: "E",     desc: "Open export modal" },
+  { key: "E",     desc: "Open export data modal (CSV / TSV / JSON)" },
 ];
 
 export default function KeyboardHelp({ onClose }) {

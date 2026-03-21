@@ -30,61 +30,6 @@ const LOAN_PURPOSE_OPTIONS = [
   { value: 'it_equipment',      label: 'IT Equipment' },
 ];
 
-// ── Privacy-aware CSV export ───────────────────────────────────────────────────
-function anonymizeName(fullName) {
-  if (!fullName) return '';
-  const parts = fullName.trim().split(' ');
-  const first = parts[0] || '';
-  const last  = parts[1] || '';
-  const mask  = (str) => str.length <= 2 ? str : str.slice(0, 2) + '*'.repeat(str.length - 2);
-  return last ? `${mask(first)} ${mask(last)}` : mask(first);
-}
-
-function exportLoansCSV(rows, privacyMode) {
-  const cols = [
-    'lead_id', 'application_date', 'loan_amount_requested', 'loan_purpose',
-    'installment_months', 'employment_status', 'monthly_net_income',
-    'monthly_expenses', 'existing_loan_payments', 'estimated_monthly_savings',
-    'civil_status', 'financial_dependants', 'residential_status',
-    'status', 'verification_job_status',
-  ];
-  const comment = privacyMode
-    ? '# Export generated with privacy mode ON — personal data anonymized per GDPR/PSD2 guidelines'
-    : '# Export generated — contains personal data, handle per your data protection policy';
-  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const csvRows = rows.map((r, i) => {
-    const leadId = privacyMode
-      ? `LEAD-${String(i + 1).padStart(3, '0')}`
-      : (r.email || `lead-${i + 1}`);
-    return [
-      leadId,
-      r.created      || '',
-      r.loanAmount   ?? '',
-      r.purpose      || '',
-      r.loanMonths   ?? '',
-      r.employment   || '',
-      r.income       ?? '',
-      r.expenses     ?? '',
-      r.existingLoans ?? '',
-      r.emergency    ?? '',
-      '',              // civil_status (not in schema)
-      '',              // financial_dependants (not in schema)
-      r.residential  || '',
-      r.status       || '',
-      r.verif        || '',
-    ].map(esc).join(',');
-  });
-  const csv = [comment, cols.join(','), ...csvRows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `loans_export_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 
 // Default visible columns
 const ALL_COLUMNS = [
@@ -244,22 +189,6 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
               <button onClick={() => { clearFilters(); setTopN(0); }} style={{ fontSize: 11, color: T.red, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "4px 6px" }}>✕ Clear</button>
             )}
           </>)}
-
-          {/* Export button */}
-          <button
-            onClick={() => exportLoansCSV(visibleRows, privacyMode)}
-            title={privacyMode ? "Export CSV with privacy mode ON" : "Export CSV"}
-            style={{
-              display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
-              borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600,
-              border: `1px solid ${privacyMode ? T.amber : T.border}`,
-              background: privacyMode ? `${T.amber}15` : T.surface2,
-              color: privacyMode ? T.amber : T.textSub,
-              fontFamily: "'Geist',sans-serif", flexShrink: 0,
-            }}
-          >
-            {privacyMode ? "🔒 Export (Private)" : "📤 Export"}
-          </button>
 
           <button onClick={() => setTableOpen(v => !v)} title={tableOpen ? "Collapse table" : "Expand table"} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7,
