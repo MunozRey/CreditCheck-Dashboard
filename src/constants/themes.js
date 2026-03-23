@@ -108,6 +108,20 @@ export function applyTheme(themeName) {
     a:focus-visible { outline: 2px solid ${t.blue}; outline-offset: 2px; }
     .cc-display { font-family: 'Playfair Display', serif; }
     .cc-display-heading { font-family: 'Playfair Display', serif; font-weight: 700; line-height: 1.15; letter-spacing: -0.3px; }
+    @media (max-width: 768px) {
+      [data-cc="navbar"] > div { padding: 0 12px !important; height: auto !important; flex-wrap: wrap !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+      [data-cc="tabbar"] { overflow-x: auto !important; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; }
+      [data-cc="tabbar"] button { padding: 0 10px !important; font-size: 10px !important; }
+      [data-cc="kpi-strip"] > div { grid-template-columns: repeat(2, 1fr) !important; }
+      [data-cc="kpi-card"] { padding: 14px 16px 12px !important; }
+      [data-cc="tab-content"] { padding: 12px 12px !important; }
+      [data-cc="date-range-bar"] { padding: 6px 12px !important; }
+      [data-cc="date-range-bar"] > div { gap: 6px !important; }
+    }
+    @media (max-width: 480px) {
+      [data-cc="kpi-strip"] > div { grid-template-columns: 1fr !important; }
+      [data-cc="kpi-card"] { padding: 12px !important; }
+    }
     @media print {
       /* Hide chrome: navbar, tab bar, toolbar, sidebar, modals, overlays */
       [data-cc="navbar"], [data-cc="tabbar"], [data-cc="date-range-bar"],

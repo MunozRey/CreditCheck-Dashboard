@@ -114,6 +114,20 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   // Apply topN as the final slice — runs after all other filters
   const visibleRows = topN > 0 ? filtered.slice(0, topN) : filtered;
 
+  // ── Summary stats for footer ──────────────────────────────────────────────
+  const summaryStats = (() => {
+    if (filtered.length === 0) return null;
+    const withIncome  = filtered.filter(r => r.income > 0);
+    const withLoan    = filtered.filter(r => r.loanAmount > 0);
+    const withScore   = filtered.filter(r => r.score != null);
+    const avgIncome   = withIncome.length  ? Math.round(withIncome.reduce((s, r)  => s + r.income, 0)      / withIncome.length)  : null;
+    const avgLoan     = withLoan.length    ? Math.round(withLoan.reduce((s, r)    => s + r.loanAmount, 0)  / withLoan.length)    : null;
+    const avgScore    = withScore.length   ? Math.round(withScore.reduce((s, r)   => s + r.score, 0)       / withScore.length)   : null;
+    const bcCount     = filtered.filter(r => r.cat === "Bank Connected").length;
+    const verifiedCnt = filtered.filter(r => r.emailVerified).length;
+    return { avgIncome, avgLoan, avgScore, bcCount, verifiedCnt, total: filtered.length };
+  })();
+
   const toggleCol = (key) => {
     setVisibleCols(prev => {
       const next = new Set(prev);
@@ -208,9 +222,9 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
           <div style={{ padding: "8px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", background: T.surface2 }}>
             <button onClick={() => setStarOnly(v => !v)} title={starOnly ? "Showing starred only — click to clear" : "Show starred leads only"} style={{
               display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, cursor: "pointer",
-              border: `1px solid ${starOnly ? "#F59E0B60" : T.border}`,
-              background: starOnly ? "#FFF8E7" : T.surface2,
-              color: starOnly ? "#B45309" : T.muted, fontSize: 11, fontWeight: starOnly ? 700 : 500,
+              border: `1px solid ${starOnly ? T.amber + "60" : T.border}`,
+              background: starOnly ? T.amberBg : T.surface2,
+              color: starOnly ? T.amber : T.muted, fontSize: 11, fontWeight: starOnly ? 700 : 500,
               fontFamily: "'Geist',sans-serif", transition: "all .14s",
             }}>
               {starOnly ? "★" : "☆"} Starred{starOnly && starredEmails.size > 0 ? ` (${[...starredEmails].filter(e => allLeads.some(r => r.email === e)).length})` : ""}
@@ -328,22 +342,24 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
         {/* Table */}
         {tableOpen && (
           <div style={{ overflowY: "auto", maxHeight: 520 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }} role="grid" aria-label={`Leads table — ${filtered.length} results`}>
               <thead>
                 <tr style={{ background: T.surface2, position: "sticky", top: 0, zIndex: 1 }}>
-                  <th style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 32, textAlign: "center" }} />
+                  <th scope="col" style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 32, textAlign: "center" }} aria-label="Star" />
                   {visibleColList.map(col => (
-                    <th key={col.key} onClick={() => toggleSort(col.key)} style={{
-                      padding: "9px 14px", textAlign: "left", fontWeight: 700,
-                      color: sortBy === col.key ? T.navy : T.muted,
-                      fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase",
-                      borderBottom: `1px solid ${T.border}`, cursor: "pointer",
-                      userSelect: "none", whiteSpace: "nowrap",
-                    }}>
+                    <th key={col.key} scope="col" onClick={() => toggleSort(col.key)}
+                      aria-sort={sortBy === col.key ? "descending" : "none"} tabIndex={0}
+                      onKeyDown={e => e.key === "Enter" && toggleSort(col.key)}
+                      style={{ padding: "9px 14px", textAlign: "left", fontWeight: 700,
+                        color: sortBy === col.key ? T.navy : T.muted,
+                        fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase",
+                        borderBottom: `1px solid ${T.border}`, cursor: "pointer",
+                        userSelect: "none", whiteSpace: "nowrap",
+                      }}>
                       {col.label}{sortIndicator(col.key)}
                     </th>
                   ))}
-                  <th style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 24 }} />
+                  <th scope="col" style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, width: 24 }} aria-label="Open" />
                 </tr>
               </thead>
               <tbody>
@@ -351,12 +367,14 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                   <tr key={row.email || `nomail-${i}-${row.name}`}
                     style={{ borderBottom: `1px solid ${T.surface2}`, transition: "background .1s", cursor: "pointer" }}
                     onClick={() => setSelectedLead(row)}
+                    onKeyDown={e => e.key === "Enter" && setSelectedLead(row)}
                     onMouseEnter={e => e.currentTarget.style.background = T.rowHover}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    tabIndex={0} role="row" aria-label={`Lead: ${row.name || "Unknown"} — ${row.cat || ""}`}>
 
                     {/* Star toggle */}
                     <td style={{ padding: "10px 8px", textAlign: "center", width: 32 }} onClick={e => { e.stopPropagation(); toggleStar(row.email); }}>
-                      <span title={starredEmails.has(row.email) ? "Unstar" : "Star this lead"} style={{ fontSize: 14, cursor: "pointer", color: starredEmails.has(row.email) ? "#F59E0B" : T.border, userSelect: "none", transition: "color .12s" }}>
+                      <span title={starredEmails.has(row.email) ? "Unstar" : "Star this lead"} style={{ fontSize: 14, cursor: "pointer", color: starredEmails.has(row.email) ? T.amber : T.border, userSelect: "none", transition: "color .12s" }}>
                         {starredEmails.has(row.email) ? "★" : "☆"}
                       </span>
                     </td>
@@ -412,7 +430,9 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
                 ))}
                 {visibleRows.length === 0 && (
                   <tr><td colSpan={visibleColList.length + 2} style={{ textAlign: "center", padding: 48, color: T.muted, fontSize: 13 }}>
-                    {starOnly ? "No starred leads in this category" : hasFilters ? "No leads match the current filters — try clearing some filters" : `No leads in ${cat}`}
+                    <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>🔍</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{starOnly ? "No starred leads in this category" : hasFilters ? "No leads match the current filters" : `No leads in ${cat}`}</div>
+                    {hasFilters && <button onClick={clearFilters} style={{ marginTop: 8, padding: "6px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface2, color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Clear all filters</button>}
                   </td></tr>
                 )}
               </tbody>
@@ -420,6 +440,25 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
           </div>
         )}
       </Card>
+
+      {/* ── Summary stats footer ── */}
+      {summaryStats && (
+        <div style={{ marginTop:16, padding:"12px 20px", borderRadius:12, border:`1px solid ${T.border}`, background:T.surface2, display:"flex", gap:0, flexWrap:"wrap" }}>
+          {[
+            { label:"Showing",      value:summaryStats.total,                 fmt: n=>`${n} leads`,          color:T.text    },
+            { label:"Bank Connected", value:summaryStats.bcCount,             fmt: n=>`${n} (${summaryStats.total>0?Math.round(n/summaryStats.total*100):0}%)`, color:T.green },
+            { label:"Email Verified", value:summaryStats.verifiedCnt,         fmt: n=>`${n}`,               color:T.blue    },
+            summaryStats.avgScore  != null && { label:"Avg Score",  value:summaryStats.avgScore,  fmt:n=>`${n} pts`,     color:n>=75?T.green:n>=50?T.blue:n>=30?T.amber:T.red },
+            summaryStats.avgIncome != null && { label:"Avg Income", value:summaryStats.avgIncome, fmt:n=>`€${n.toLocaleString()}/mo`, color:T.navy },
+            summaryStats.avgLoan   != null && { label:"Avg Loan",   value:summaryStats.avgLoan,   fmt:n=>`€${n.toLocaleString()}`,   color:T.navy },
+          ].filter(Boolean).map((stat, i, arr) => (
+            <div key={stat.label} style={{ flex:"1 1 120px", padding:"6px 16px", borderRight:i<arr.length-1?`1px solid ${T.border}`:"none", minWidth:100 }}>
+              <div style={{ fontSize:9, fontWeight:800, color:T.muted, letterSpacing:1.2, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", marginBottom:3 }}>{stat.label}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:stat.color, fontVariantNumeric:"tabular-nums" }}>{stat.fmt(stat.value)}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {selectedLead && <LeadDrawer lead={selectedLead} onClose={() => setSelectedLead(null)} />}
     </div>
