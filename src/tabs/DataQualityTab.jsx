@@ -17,7 +17,7 @@ export default function DataQualityTab({ data }) {
     return (
       <div style={{ padding: '60px 0', textAlign: 'center', color: T.muted }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🔬</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: "'Playfair Display', serif" }}>No data loaded</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: T.fontDisplay }}>No data loaded</div>
         <div style={{ fontSize: 13 }}>Upload an XLSX to run data quality analysis.</div>
       </div>
     );
@@ -68,7 +68,7 @@ export default function DataQualityTab({ data }) {
     ok:      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke={T.green} strokeWidth="1.5"/><path d="M4 7l2 2 4-4" stroke={T.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   };
   const issueBg     = { error: T.redBg, warning: T.amberBg,             ok: '#F0FDF4' };
-  const issueBorder = { error: '#FCA5A5', warning: 'rgba(245,158,11,0.3)', ok: 'rgba(16,185,129,0.3)' };
+  const issueBorder = { error: `${T.red}40`, warning: `${T.amber}4D`, ok: `${T.green}4D` };
 
   const catBreakdown = [
     { label: 'Bank Connected', count: bc.length,  color: T.navy,  pct: Math.round(bc.length  / all.length * 100) },
@@ -76,7 +76,7 @@ export default function DataQualityTab({ data }) {
     { label: 'Incomplete',     count: inc.length, color: T.amber, pct: Math.round(inc.length / all.length * 100) },
   ];
 
-  const colors = [T.navy, T.blue, T.blue2, T.blue3, '#6366F1', '#8B5CF6', T.amber, T.muted];
+  const colors = [T.navy, T.blue, T.blue2, T.blue3, T.blue2, T.muted, T.amber, T.muted];
 
   // ── Duplicate detection (group by email, case-insensitive) ──────────────
   const duplicateGroups = useMemo(() => {

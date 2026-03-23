@@ -3,8 +3,8 @@ import {
   BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { useTheme, getModelColors } from '../context/ThemeContext.jsx';
-import { calcRev, MONTHS, monthKey, todayYM, newPartner } from '../utils/revenue.js';
-import { fmtEur, fmtNum } from '../utils/format.js';
+import { calcRev, newPartner } from '../utils/revenue.js';
+import { fmtEur, fmtNum, MONTHS, monthKey, todayYM } from '../utils/format.js';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import MonthNav from '../components/MonthNav.jsx';
@@ -123,7 +123,7 @@ export default function MultiPartnerTab({ partners, setPartners, monthData, setM
                   <button onClick={() => updPartner(p.id, { active: !p.active })} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 6, padding: "3px 10px", color: "#fff", fontSize: 10, cursor: "pointer", fontFamily: "'Geist',sans-serif", whiteSpace: "nowrap" }}>
                     {p.active ? "● Active" : "○ Paused"}
                   </button>
-                  <button onClick={() => removePartner(p.id)} style={{ background: "rgba(220,38,38,0.4)", border: "none", borderRadius: 6, padding: "3px 8px", color: "#fff", cursor: "pointer", fontSize: 11 }}>✕</button>
+                  <button onClick={() => removePartner(p.id)} style={{ background: `${T.red}66`, border: "none", borderRadius: 6, padding: "3px 8px", color: "#fff", cursor: "pointer", fontSize: 11 }}>✕</button>
                 </div>
 
                 {/* Monthly entry */}

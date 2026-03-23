@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useTheme } from '../context/ThemeContext.jsx';
 import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { scoreLead, EMP_OPTIONS } from '../utils/scoring.js';
-import { VERTICALS_DEF } from '../constants/verticals.js';
+import { getVerticalsDef } from '../constants/verticals.js';
 import Card from '../components/Card.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 import ScoreBar from '../components/ScoreBar.jsx';
@@ -14,6 +14,7 @@ const PAGE_SIZE = 50;
 export default function LeadScoringTab({ data }) {
   const { T } = useTheme();
   const { maskName, maskEmail } = usePrivacy();
+  const VERTICALS_DEF = getVerticalsDef(T);
 
   // Local grade color helper using context T (avoids global T dependency)
   const gradeColor = (s) => s >= 75 ? T.green : s >= 50 ? T.blue : s >= 30 ? T.amber : T.red;
@@ -90,7 +91,7 @@ export default function LeadScoringTab({ data }) {
   if (!isEnriched) return (
     <Card style={{ padding: 48, textAlign: "center" }}>
       <div style={{ marginBottom: 12, color: T.muted, lineHeight: 0 }}><svg width="36" height="32" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: "'Playfair Display', serif" }}>Lead Scoring requires enriched data</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: T.fontDisplay }}>Lead Scoring requires enriched data</div>
       <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>Upload a CreditCheck XLSX (Rasmus format) with income, DTI and employment data</div>
     </Card>
   );

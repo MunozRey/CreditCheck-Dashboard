@@ -3,8 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { useTheme, getModelColors } from '../context/ThemeContext.jsx';
-import { calcRev, MONTHS, monthKey, todayYM } from '../utils/revenue.js';
-import { fmtEur } from '../utils/format.js';
+import { calcRev } from '../utils/revenue.js';
+import { fmtEur, MONTHS, monthKey, todayYM } from '../utils/format.js';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import MonthNav from '../components/MonthNav.jsx';
@@ -110,7 +110,7 @@ export default function RevenueTab({ partners, monthData }) {
               <rect x="17" y="8" width="3" height="10" rx="1" fill="currentColor" opacity=".55"/>
             </svg>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Playfair Display', serif" }}>No data for {MONTHS[m]} {y}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: T.fontDisplay }}>No data for {MONTHS[m]} {y}</div>
           <div style={{ fontSize: 12, color: T.muted }}>Go to the <strong>Partners</strong> tab and enter leads for this month.</div>
         </Card>
       ) : (<>

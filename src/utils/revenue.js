@@ -1,6 +1,5 @@
-import { T } from "../constants/themes.js";
-
 // ─── REVENUE HELPERS ──────────────────────────────────────────────────────────
+// Note: MONTHS, monthKey, todayYM are canonical in format.js — import from there.
 
 export const calcRev = (model, count, s) => {
   if (!count||!s) return 0;
@@ -30,20 +29,11 @@ export const PRESETS = {
   ],
 };
 
-export const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-export function monthKey(y, m) { return `${y}-${String(m+1).padStart(2,"0")}`; }
-
-export function todayYM() {
-  const d = new Date();
-  return { y: d.getFullYear(), m: d.getMonth() };
-}
-
-export function newPartner(name) {
+export function newPartner(name, color) {
   return {
     id: typeof crypto!=="undefined"&&crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
     name,
-    color: T.navy,
+    color: color ?? "#0A1264",
     active: true,
     model: "cpl",
     bcS: { cplRate:11, convRate:25, ticket:15000, commission:2.0 },

@@ -5,6 +5,7 @@ import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 import CustomTooltip from '../components/CustomTooltip.jsx';
+import { fmtK } from '../utils/format.js';
 
 export default function InsightsTab({ data }) {
   const { T } = useTheme();
@@ -18,7 +19,7 @@ export default function InsightsTab({ data }) {
     return (
       <div style={{ padding: '60px 0', textAlign: 'center', color: T.muted }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: "'Playfair Display', serif" }}>No enriched data available</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: T.fontDisplay }}>No enriched data available</div>
         <div style={{ fontSize: 13 }}>Upload a CreditScore XLSX (Rasmus format) to unlock this tab.</div>
         <div style={{ fontSize: 12, marginTop: 6 }}>Required columns: Age, Monthly Net Income, Loan Purpose, Employment Status, etc.</div>
       </div>
@@ -27,7 +28,6 @@ export default function InsightsTab({ data }) {
 
   const avg    = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : 0;
   const median = arr => { if (!arr.length) return 0; const s = [...arr].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
-  const fmtK   = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
   const clean  = (arr, field) => arr.map(r => r[field]).filter(v => v != null && v > 0);
 
   const incomeChart = useMemo(() => {

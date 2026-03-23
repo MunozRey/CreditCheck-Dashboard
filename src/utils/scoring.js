@@ -1,5 +1,3 @@
-import { T } from "../constants/themes.js";
-
 // ─── LEAD SCORING ─────────────────────────────────────────────────────────────
 // 100-point model. Factor breakdown:
 //   Income adequacy   0-25pts  (ES median net ~1900€/mo)
@@ -76,6 +74,7 @@ export function scoreLead(r) {
 
   return Math.min(Math.round(score), 100);
 }
+
 
 /**
  * Returns factor-by-factor breakdown of lead score (for LeadDrawer display).

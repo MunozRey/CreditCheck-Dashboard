@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { usePrivacy } from '../context/PrivacyContext.jsx';
-import { VERTICALS_DEF, applyVehicleFilter as filterByVehicle, COUNTRY_META } from '../constants/verticals.js';
+import { getVerticalsDef, applyVehicleFilter as filterByVehicle } from '../constants/verticals.js';
+import { COUNTRY_META } from '../constants/countries.js';
 import { auditLog } from '../utils/auditLog.js'; // M-04: audit trail for exports
 import { scoreLead } from '../utils/scoring.js';
 
 export default function ExportModal({ onClose, data }) {
   const { T } = useTheme();
   const { maskName, maskEmail } = usePrivacy();
+  const VERTICALS_DEF = getVerticalsDef(T);
 
   const bc   = data["Bank Connected"]  || [];
   const fs   = data["Form Submitted"]  || [];
@@ -276,22 +278,6 @@ tr:last-child td{border-bottom:none}
   };
 
   // ── UI helpers ────────────────────────────────────────────────────────────
-  const Toggle = ({ checked, onChange, label, accent=T.blue }) => (
-    <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer", userSelect:"none" }}>
-      <div onClick={onChange} style={{
-        width:32, height:18, borderRadius:9, background:checked?accent:T.borderHi,
-        position:"relative", transition:"background .15s", cursor:"pointer", flexShrink:0,
-      }}>
-        <div style={{
-          width:14, height:14, borderRadius:"50%", background:"#fff",
-          position:"absolute", top:2, left:checked?15:2, transition:"left .15s",
-          boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
-        }}/>
-      </div>
-      <span style={{ fontSize:12, color:T.text, fontWeight:500 }}>{label}</span>
-    </label>
-  );
-
   const Checkbox = ({ checked, onChange, label, color=T.blue }) => (
     <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer", userSelect:"none", padding:"5px 0" }}>
       <div onClick={onChange} style={{

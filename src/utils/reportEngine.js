@@ -1,4 +1,8 @@
-import { VERTICALS_DEF } from '../constants/verticals.js';
+import { getVerticalsDef } from '../constants/verticals.js';
+import { THEMES } from '../constants/themes.js';
+
+// Reports are always light-mode static HTML — use light theme for vertical lookups
+const VERTICALS_DEF = getVerticalsDef(THEMES.light);
 
 // REPORT_DEFS — T.* used for React UI card styling only (bgColor, tagBg)
 export const getReportDefs = (T) => [

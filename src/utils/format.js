@@ -8,6 +8,8 @@ export const fmtEur = n => {
 
 export const fmtNum = n => (!isFinite(n)||isNaN(n))?"—":n>=1_000?`${(n/1_000).toFixed(1)}k`:`${Math.round(n)}`;
 
+export const fmtK = n => n >= 1000 ? `€${(n/1000).toFixed(0)}k` : `€${n}`;
+
 export const isValidEmail = e =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e||"") &&
   !["test","example","asda","boraitaformacion"].some(d=>(e||"").includes(d));

@@ -3,7 +3,8 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
-import { COUNTRY_META } from '../constants/verticals.js';
+import { COUNTRY_META } from '../constants/countries.js';
+import { fmtK } from '../utils/format.js';
 
 export default function CountriesTab({ data }) {
   const { T } = useTheme();
@@ -33,7 +34,6 @@ export default function CountriesTab({ data }) {
   }
 
   const isEnriched = all.some(r => r.income != null);
-  const fmtK = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
 
   const countryStats = {};
   all.forEach(r => {

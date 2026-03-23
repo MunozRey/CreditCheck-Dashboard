@@ -369,7 +369,7 @@ function AppInner() {
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:700, letterSpacing:-0.2, lineHeight:1, fontFamily:"'Playfair Display', serif", color:T.text }}>{settings.title || "CreditCheck"}</div>
+                  <div style={{ fontSize:14, fontWeight:700, letterSpacing:-0.2, lineHeight:1, fontFamily:T.fontDisplay, color:T.text }}>{settings.title || "CreditCheck"}</div>
                   <div style={{ fontSize:8, color:T.muted, fontWeight:500, letterSpacing:1.2, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", marginTop:1 }}>{settings.subtitle || "Lead Intelligence"}</div>
                 </div>
               </>
@@ -572,7 +572,7 @@ function AppInner() {
             </div>
 
             {/* Upload button */}
-            <button className="cc-btn" onClick={() => setUpload(v => !v)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:showUpload?T.blue:T.surface2, border:`1px solid ${showUpload?T.blue:T.border}`, borderRadius:7, color:showUpload?"#fff":T.textSub, fontWeight:600, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1, boxShadow:showUpload?"0 0 0 3px rgba(59,130,246,0.15)":"none" }}>
+            <button className="cc-btn" onClick={() => setUpload(v => !v)} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", background:showUpload?T.blue:T.surface2, border:`1px solid ${showUpload?T.blue:T.border}`, borderRadius:7, color:showUpload?"#fff":T.textSub, fontWeight:600, fontSize:11, cursor:"pointer", fontFamily:"'Geist',sans-serif", letterSpacing:0.1, boxShadow:showUpload?`0 0 0 3px ${T.blue}26`:"none" }}>
               <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 9V2M3 4.5L6 1.5l3 3M1 9.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
               Upload XLSX
             </button>

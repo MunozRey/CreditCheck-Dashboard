@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { VERTICALS_DEF, applyVehicleFilter } from '../constants/verticals.js';
+import { getVerticalsDef, applyVehicleFilter } from '../constants/verticals.js';
 import { VERTICAL_ICONS } from '../constants/verticalIcons.jsx';
+import { fmtK } from '../utils/format.js';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 
 export default function VerticalsTab({ data }) {
   const { T } = useTheme();
+  const VERTICALS_DEF = getVerticalsDef(T);
   const [activeV, setActiveV] = useState("personal_loans");
 
   const bc  = data["Bank Connected"]  || [];
@@ -44,8 +46,6 @@ export default function VerticalsTab({ data }) {
       if (ratio < 0.3) dti.h++; else if (ratio < 0.5) dti.m++; else dti.hi++;
     }
   });
-
-  const fmtK = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
@@ -102,7 +102,7 @@ export default function VerticalsTab({ data }) {
       {vLeads.length === 0 ? (
         <Card style={{ padding: 48, textAlign: "center" }}>
           <div style={{ marginBottom: 12, color: V.color, lineHeight: 0, display: "inline-block" }}>{VERTICAL_ICONS[V.id]?.(36)}</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: "'Playfair Display', serif" }}>No leads in this vertical</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: T.fontDisplay }}>No leads in this vertical</div>
           <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>Upload a XLSX with loan purpose data</div>
         </Card>
       ) : (<>

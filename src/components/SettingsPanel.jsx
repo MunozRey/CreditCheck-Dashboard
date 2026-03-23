@@ -1,6 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
 
+// ── Default settings exported for App.jsx to use ─────────────────────────────
+export const DEFAULT_SETTINGS = {
+  // Branding
+  title:           "CreditCheck",
+  subtitle:        "Lead Intelligence",
+  showOfficialLogo: true,
+  // Accent colors (light theme only — dark theme uses its own tokens)
+  accentBlue:  "#005EFF",
+  accentNavy:  "#0A1264",
+  accentGreen: "#059669",
+  accentAmber: "#D97706",
+  accentRed:   "#DC2626",
+  // KPI cards
+  kpiTotal:      true,
+  kpiBC:         true,
+  kpiFS:         true,
+  kpiIncomplete: true,
+  kpiAvgScore:   true,
+  // Tab visibility
+  tabLeads:     true,
+  tabAnalytics: true,
+  tabVerticals: true,
+  tabCountries: true,
+  tabScoring:   true,
+  tabInsights:  true,
+  tabQuality:   true,
+  tabRevenue:   true,
+  tabPartners:  true,
+  // Table defaults
+  defaultCat:        "Form Submitted",
+  defaultSort:       "created",
+  showDateRangeBar:  true,
+};
+
 // ── Colour-picker swatch ──────────────────────────────────────────────────────
 function ColorSwatch({ value, onChange, label }) {
   const { T } = useTheme();
@@ -85,7 +119,7 @@ export default function SettingsPanel({ settings, onSave, onClose }) {
         {/* Header */}
         <div style={{ padding:"16px 20px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:12, background:T.surface2, flexShrink:0 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:15, fontWeight:700, color:T.text, fontFamily:"'Playfair Display',serif" }}>Dashboard Settings</div>
+            <div style={{ fontSize:15, fontWeight:700, color:T.text, fontFamily:T.fontDisplay }}>Dashboard Settings</div>
             <div style={{ fontSize:11, color:T.muted, marginTop:1 }}>Customize appearance &amp; layout</div>
           </div>
           <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:T.muted, lineHeight:1, padding:4 }}>✕</button>
@@ -197,37 +231,3 @@ export default function SettingsPanel({ settings, onSave, onClose }) {
     </>
   );
 }
-
-// ── Default settings exported for App.jsx to use ─────────────────────────────
-export const DEFAULT_SETTINGS = {
-  // Branding
-  title:           "CreditCheck",
-  subtitle:        "Lead Intelligence",
-  showOfficialLogo: true,
-  // Accent colors (light theme only — dark theme uses its own tokens)
-  accentBlue:  "#005EFF",
-  accentNavy:  "#0A1264",
-  accentGreen: "#059669",
-  accentAmber: "#D97706",
-  accentRed:   "#DC2626",
-  // KPI cards
-  kpiTotal:      true,
-  kpiBC:         true,
-  kpiFS:         true,
-  kpiIncomplete: true,
-  kpiAvgScore:   true,
-  // Tab visibility
-  tabLeads:     true,
-  tabAnalytics: true,
-  tabVerticals: true,
-  tabCountries: true,
-  tabScoring:   true,
-  tabInsights:  true,
-  tabQuality:   true,
-  tabRevenue:   true,
-  tabPartners:  true,
-  // Table defaults
-  defaultCat:        "Form Submitted",
-  defaultSort:       "created",
-  showDateRangeBar:  true,
-};

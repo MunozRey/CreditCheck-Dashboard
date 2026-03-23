@@ -87,9 +87,9 @@ export default function UploadZone({ onData }) {
       style={{
         border: `1px dashed ${drag ? T.blue : T.borderHi}`,
         borderRadius: 12, padding: '28px 20px', textAlign: 'center',
-        background: drag ? 'rgba(59,130,246,0.06)' : T.surface2,
+        background: drag ? `${T.blue}10` : T.surface2,
         cursor: 'pointer', transition: 'all .2s',
-        boxShadow: drag ? '0 0 0 3px rgba(59,130,246,0.15)' : 'none',
+        boxShadow: drag ? `0 0 0 3px ${T.blue}26` : 'none',
       }}
     >
       <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => handle(e.target.files[0])} />
