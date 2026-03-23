@@ -209,7 +209,7 @@ export default function LeadScoringTab({ data }) {
               {pageRows.map((r, i) => {
                 const dtiVal = r.income && r.expenses && r.income > 0 ? (r.expenses / r.income * 100).toFixed(0) : null;
                 const dtiColor = dtiVal
-                  ? dtiVal < 30 ? T.green : dtiVal < 35 ? "#65A30D" : dtiVal < 40 ? T.amber : dtiVal < 50 ? "#F97316" : T.red
+                  ? dtiVal < 30 ? T.green : dtiVal < 35 ? T.green : dtiVal < 40 ? T.amber : dtiVal < 50 ? T.amber : T.red
                   : T.muted;
                 const purp = Object.values(VERTICALS_DEF).find(v => v.purposes.includes(r.purpose));
                 return (
