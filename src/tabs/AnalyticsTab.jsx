@@ -19,6 +19,29 @@ export default function AnalyticsTab({ data }) {
 
   const bc  = data["Bank Connected"] || [];
   const fs  = data["Form Submitted"] || [];
+
+  // ── Empty state ──────────────────────────────────────────────────────────
+  if (bc.length === 0 && fs.length === 0) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"80px 24px", gap:16, textAlign:"center" }}>
+        <div style={{ width:64, height:64, borderRadius:16, background:T.surface2, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📊</div>
+        <div style={{ fontSize:18, fontWeight:700, color:T.text, fontFamily:"'Playfair Display',serif", letterSpacing:-0.3 }}>No data to analyse</div>
+        <div style={{ fontSize:13, color:T.muted, maxWidth:380, lineHeight:1.6 }}>
+          Upload a CreditCheck XLSX export or connect the live feed to see conversion trends, BC rates, and monthly breakdowns.
+        </div>
+        <div style={{ display:"flex", gap:8, marginTop:4 }}>
+          {[["📈","BC Rate","% of active leads that connect bank"],["📅","Daily trend","Leads per day over time"],["🗓","Monthly","Volume by month & category"]].map(([icon,label,desc])=>(
+            <div key={label} style={{ padding:"12px 16px", borderRadius:12, border:`1px solid ${T.border}`, background:T.surface2, textAlign:"center", minWidth:120 }}>
+              <div style={{ fontSize:20, marginBottom:4 }}>{icon}</div>
+              <div style={{ fontSize:11, fontWeight:700, color:T.text }}>{label}</div>
+              <div style={{ fontSize:10, color:T.muted, marginTop:3, lineHeight:1.4 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const all = useMemo(() => [
     ...bc.map(r => ({ ...r, cat: "Bank Connected" })),
     ...fs.map(r => ({ ...r, cat: "Form Submitted" })),
@@ -94,7 +117,7 @@ export default function AnalyticsTab({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.6} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip hint="BC = Open Banking connected · FS = form completed only" />} />
               <Legend wrapperStyle={{ fontSize: 11, color: T.muted }} />
               <Bar dataKey="BC" name="Bank Connected" fill={T.navy}  radius={[4, 4, 0, 0]} />
               <Bar dataKey="FS" name="Form Submitted" fill={T.blue3} radius={[4, 4, 0, 0]} />
@@ -146,7 +169,7 @@ export default function AnalyticsTab({ data }) {
             <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.6} vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
-            <Tooltip content={<CustomTooltip formatter={v => `${v}%`} />} />
+            <Tooltip content={<CustomTooltip formatter={v => `${v}%`} hint="BC Rate = Bank Connected ÷ (BC + FS) × 100. Higher is better — indicates lead quality." />} />
             <Area type="monotone" dataKey="bcRate" name="BC Rate" stroke={T.navy} strokeWidth={2.5} fill={`url(#${gradId})`} dot={{ fill: T.navy, r: 4, strokeWidth: 0 }} />
           </AreaChart>
         </ResponsiveContainer>
@@ -200,6 +223,48 @@ export default function AnalyticsTab({ data }) {
         </div>
       </Card>
 
+      {/* Conversion Funnel */}
+      <Card style={{ padding: "20px" }}>
+        <SectionTitle>Conversion Funnel</SectionTitle>
+        {(() => {
+          const inc = (data["Incomplete"] || []).length;
+          const total = bc.length + fs.length + inc;
+          const steps = [
+            { label: "Total Entries", value: total, color: T.text },
+            { label: "Form Submitted", value: bc.length + fs.length, color: T.blue },
+            { label: "Bank Connected", value: bc.length, color: T.green },
+            { label: "Email Verified", value: bc.filter(r => r.emailVerified).length, color: T.navy },
+          ];
+          return (
+            <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+              {steps.map((s, i) => {
+                const pct = total > 0 ? (s.value / total * 100) : 0;
+                const dropOff = i > 0 && steps[i-1].value > 0 ? ((steps[i-1].value - s.value) / steps[i-1].value * 100).toFixed(0) : null;
+                return (
+                  <React.Fragment key={s.label}>
+                    <div style={{ flex: 1, textAlign: "center", padding: "16px 8px", background: `${s.color}08`, borderRadius: 10, border: `1px solid ${s.color}20`, position: "relative" }}>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: T.muted, marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'IBM Plex Mono',monospace" }}>{s.label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: s.color, marginTop: 4 }}>{pct.toFixed(1)}%</div>
+                      {/* Progress bar */}
+                      <div style={{ marginTop: 8, height: 6, background: T.surface2, borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: s.color, borderRadius: 3, transition: "width .5s ease" }} />
+                      </div>
+                    </div>
+                    {i < steps.length - 1 && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 4px", minWidth: 40 }}>
+                        <div style={{ fontSize: 16, color: T.border }}>→</div>
+                        {dropOff !== null && <div style={{ fontSize: 9, color: T.red, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>-{dropOff}%</div>}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </Card>
+
       {/* Monthly trend chart */}
       {monthlySeries.length > 1 && (
         <Card style={{ padding: "20px 20px 14px" }}>
@@ -212,7 +277,7 @@ export default function AnalyticsTab({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.5} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: T.muted }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip hint="Monthly lead volume by category. Trends show pipeline health over time." />} />
               <Legend iconType="square" iconSize={8} wrapperStyle={{ fontSize: 10, color: T.muted }} />
               <Bar dataKey="BC" name="Bank Connected" fill={T.navy} radius={[3, 3, 0, 0]} />
               <Bar dataKey="FS" name="Form Submitted" fill={T.blue3} radius={[3, 3, 0, 0]} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import UploadZone from './components/UploadZone.jsx';
@@ -7,15 +7,16 @@ import KeyboardHelp from './components/KeyboardHelp.jsx';
 import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
 
-import LeadsTab        from './tabs/LeadsTab.jsx';
-import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
-import VerticalsTab    from './tabs/VerticalsTab.jsx';
-import CountriesTab    from './tabs/CountriesTab.jsx';
-import LeadScoringTab  from './tabs/LeadScoringTab.jsx';
-import InsightsTab     from './tabs/InsightsTab.jsx';
-import DataQualityTab  from './tabs/DataQualityTab.jsx';
-import RevenueTab      from './tabs/RevenueTab.jsx';
-import MultiPartnerTab from './tabs/MultiPartnerTab.jsx';
+// Eager-load the default tab, lazy-load the rest
+import LeadsTab from './tabs/LeadsTab.jsx';
+const AnalyticsTab    = lazy(() => import('./tabs/AnalyticsTab.jsx'));
+const VerticalsTab    = lazy(() => import('./tabs/VerticalsTab.jsx'));
+const CountriesTab    = lazy(() => import('./tabs/CountriesTab.jsx'));
+const LeadScoringTab  = lazy(() => import('./tabs/LeadScoringTab.jsx'));
+const InsightsTab     = lazy(() => import('./tabs/InsightsTab.jsx'));
+const DataQualityTab  = lazy(() => import('./tabs/DataQualityTab.jsx'));
+const RevenueTab      = lazy(() => import('./tabs/RevenueTab.jsx'));
+const MultiPartnerTab = lazy(() => import('./tabs/MultiPartnerTab.jsx'));
 
 import { processRows }  from './utils/xlsxParser.js';
 import DEFAULT_DATA      from './utils/defaultData.js';
@@ -116,7 +117,7 @@ function AppInner() {
     return () => clearInterval(id);
   }, []);
   // reset countdown when a fetch completes
-  const resetCountdown = () => setNextRefreshMins(60);
+  const resetCountdown = useCallback(() => setNextRefreshMins(60), []);
 
   // ── Live data fetch state ─────────────────────────────────────────────────
   // liveStatus: null = not yet tried | {ok:true, at:Date} | {ok:false, err:string, isCors:bool}
@@ -375,8 +376,22 @@ function AppInner() {
 
       {/* ── GLOBAL DATE FILTER BAR ── */}
       {settings.showDateRangeBar !== false && <div data-cc="date-range-bar" style={{ background:T.surface2, borderBottom:`1px solid ${T.border}`, padding:"7px 24px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, maxWidth:1600, margin:"0 auto" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, maxWidth:1600, margin:"0 auto", flexWrap:"wrap" }}>
           <span style={{ fontSize:9, fontWeight:700, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", fontFamily:"'IBM Plex Mono',monospace", flexShrink:0 }}>Date Range</span>
+          {/* Preset buttons */}
+          {[
+            { label:"Today", fn:() => { const d = new Date().toISOString().slice(0,10); setDrFrom(d); setDrTo(d); }},
+            { label:"7d",    fn:() => { const t=new Date(); setDrTo(t.toISOString().slice(0,10)); t.setDate(t.getDate()-7); setDrFrom(t.toISOString().slice(0,10)); }},
+            { label:"30d",   fn:() => { const t=new Date(); setDrTo(t.toISOString().slice(0,10)); t.setDate(t.getDate()-30); setDrFrom(t.toISOString().slice(0,10)); }},
+            { label:"This month", fn:() => { const t=new Date(); setDrFrom(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-01`); setDrTo(t.toISOString().slice(0,10)); }},
+          ].map(p => (
+            <button key={p.label} onClick={p.fn} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.textSub, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"'IBM Plex Mono',monospace", transition:"all .12s" }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=T.blue;e.currentTarget.style.color=T.blue;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textSub;}}>
+              {p.label}
+            </button>
+          ))}
+          <div style={{ width:1, height:16, background:T.border, flexShrink:0 }}/>
           <input type="date" value={drFrom} onChange={e => setDrFrom(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
           <span style={{ fontSize:11, color:T.muted }}>→</span>
           <input type="date" value={drTo} onChange={e => setDrTo(e.target.value)} style={{ border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 8px", fontSize:11, color:T.text, outline:"none", background:T.surface, fontFamily:"'IBM Plex Mono',monospace" }} />
@@ -384,7 +399,7 @@ function AppInner() {
             <>
               <button onClick={() => { setDrFrom(""); setDrTo(""); }} style={{ padding:"3px 10px", borderRadius:5, border:`1px solid ${T.border}`, background:T.surface, color:T.red, fontSize:10, fontWeight:700, cursor:"pointer" }}>✕ Clear</button>
               <span style={{ fontSize:10, color:T.amber, fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>
-                {(drFrom || drTo) && `${total} leads in range`}
+                {`${total} leads in range`}
               </span>
             </>
           )}
@@ -396,7 +411,7 @@ function AppInner() {
 
       {/* ── KPI STRIP ── */}
       <div data-cc="kpi-strip" style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
-        <div style={{ display:"grid", gridTemplateColumns:`repeat(${[settings.kpiTotal,settings.kpiBC,settings.kpiFS,settings.kpiIncomplete,settings.kpiAvgScore].filter(v=>v!==false).length},1fr)`, maxWidth:1600, margin:"0 auto" }}>
+        <div style={{ display:"grid", gridTemplateColumns:`repeat(auto-fit, minmax(180px, 1fr))`, maxWidth:1600, margin:"0 auto" }}>
           {[
             { key:"kpiTotal",      label:"Total Leads",     value:total>0?total:"—",           sub:"unique · deduplicated",                                     color:T.text,  accent:T.blue,  icon:"◈" },
             { key:"kpiBC",         label:"Bank Connected",  value:bc>0?bc:"—",                 sub:`${bc+fs>0?Math.round(bc/(bc+fs)*100):0}% of active leads`,  color:T.green, accent:T.green, icon:"✓" },
@@ -487,16 +502,23 @@ function AppInner() {
       {showSettings && <SettingsPanel settings={settings} onSave={saveSettings} onClose={() => setShowSettings(false)} />}
 
       {/* ── Tab content ── */}
-      <div key={`tab-${theme}`} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
-        {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
-        {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
-        {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
-        {tab==="countries" && <CountriesTab    data={filteredData}/>}
-        {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
-        {tab==="insights"  && <InsightsTab     data={filteredData}/>}
-        {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
-        {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
-        {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+      <div key={`tab-${theme}`} role="tabpanel" id={`panel-${tab}`} aria-label={tab} data-cc="tab-content" className="cc-tab-content" style={{ padding:"24px 28px", maxWidth:1600, margin:"0 auto" }}>
+        <Suspense fallback={
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:64, gap:12 }}>
+            <div style={{ width:24, height:24, border:`2.5px solid ${T.border}`, borderTop:`2.5px solid ${T.blue}`, borderRadius:"50%", animation:"cc-spin .7s linear infinite" }}/>
+            <span style={{ fontSize:11, color:T.muted, fontFamily:"'IBM Plex Mono',monospace" }}>Loading…</span>
+          </div>
+        }>
+          {tab==="leads"     && <LeadsTab        data={filteredData} starredEmails={starredEmails} toggleStar={toggleStar} defaultCat={settings.defaultCat} defaultSort={settings.defaultSort}/>}
+          {tab==="analytics" && <AnalyticsTab    data={filteredData}/>}
+          {tab==="verticals" && <VerticalsTab    data={filteredData}/>}
+          {tab==="countries" && <CountriesTab    data={filteredData}/>}
+          {tab==="scoring"   && <LeadScoringTab  data={filteredData}/>}
+          {tab==="insights"  && <InsightsTab     data={filteredData}/>}
+          {tab==="quality"   && <DataQualityTab  data={filteredData}/>}
+          {tab==="revenue"   && <RevenueTab      partners={partners} monthData={partnerMonthData}/>}
+          {tab==="partners"  && <MultiPartnerTab partners={partners} setPartners={setPartners} monthData={partnerMonthData} setMonthData={setPartnerMonthData}/>}
+        </Suspense>
       </div>
     </div>
   );

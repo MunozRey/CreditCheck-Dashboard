@@ -159,7 +159,7 @@ export default function ExportModal({ onClose, data }) {
         position:"relative", transition:"background .15s", cursor:"pointer", flexShrink:0,
       }}>
         <div style={{
-          width:14, height:14, borderRadius:"50%", background:"#fff",
+          width:14, height:14, borderRadius:"50%", background:T.surface,
           position:"absolute", top:2, left:checked?15:2, transition:"left .15s",
           boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
         }}/>
@@ -234,7 +234,7 @@ export default function ExportModal({ onClose, data }) {
 
             <SectionHdr>Category</SectionHdr>
             <Checkbox checked={cats.bc}  onChange={()=>setCats(p=>({...p,bc:!p.bc}))}   label="🟦 Bank Connected"  color={T.blue}/>
-            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="🟨 Form Submitted"  color="#F59E0B"/>
+            <Checkbox checked={cats.fs}  onChange={()=>setCats(p=>({...p,fs:!p.fs}))}   label="🟨 Form Submitted"  color={T.amber}/>
             <Checkbox checked={cats.inc} onChange={()=>setCats(p=>({...p,inc:!p.inc}))} label="⬜ Incomplete"       color={T.muted}/>
 
             <SectionHdr>Vertical</SectionHdr>
@@ -313,7 +313,7 @@ export default function ExportModal({ onClose, data }) {
                 <thead>
                   <tr style={{ background:T.surface2 }}>
                     {activeFields.map(f=>(
-                      <th key={f.key} style={{ padding:"7px 10px", textAlign:"left", color:"rgba(255,255,255,0.7)", fontWeight:700, fontSize:9, letterSpacing:0.8, textTransform:"uppercase", whiteSpace:"nowrap" }}>{f.label}</th>
+                      <th key={f.key} style={{ padding:"7px 10px", textAlign:"left", color:T.muted, fontWeight:700, fontSize:9, letterSpacing:0.8, textTransform:"uppercase", whiteSpace:"nowrap" }}>{f.label}</th>
                     ))}
                   </tr>
                 </thead>
