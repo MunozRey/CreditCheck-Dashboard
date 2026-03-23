@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { VERTICALS_DEF, applyVehicleFilter } from '../constants/verticals.js';
+import { VERTICAL_ICONS } from '../constants/verticalIcons.jsx';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
@@ -63,7 +64,7 @@ export default function VerticalsTab({ data }) {
               border: `2px solid ${active ? v.color : T.border}`,
               transition: "all .15s", boxShadow: active ? "0 4px 16px rgba(0,0,0,0.15)" : "none",
             }}>
-              <div style={{ fontSize: 20, marginBottom: 7 }}>{v.icon}</div>
+              <div style={{ marginBottom: 7, color: active ? "#fff" : v.color, lineHeight: 0 }}>{VERTICAL_ICONS[v.id]?.(20)}</div>
               <div style={{ fontSize: 13, fontWeight: 900, color: active ? "#fff" : T.text, letterSpacing: -0.2 }}>{v.label}</div>
               <div style={{ fontSize: 10, color: active ? "rgba(255,255,255,0.6)" : T.muted, margin: "3px 0 10px", lineHeight: 1.4 }}>{v.desc}</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -88,7 +89,7 @@ export default function VerticalsTab({ data }) {
           borderRadius: 8, fontSize: 11,
           color: V.vehicleFilter === "secured" ? "#9F1239" : "#78350F",
         }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+          <svg width="16" height="14" viewBox="0 0 14 13" fill="none" style={{ flexShrink: 0 }}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg>
           <div style={{ lineHeight: 1.6 }}>
             <strong>Heuristic segmentation — no explicit field in source data.</strong>{" "}
             {V.vehicleFilter === "unsecured"
@@ -100,7 +101,7 @@ export default function VerticalsTab({ data }) {
 
       {vLeads.length === 0 ? (
         <Card style={{ padding: 48, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>{V.icon}</div>
+          <div style={{ marginBottom: 12, color: V.color, lineHeight: 0, display: "inline-block" }}>{VERTICAL_ICONS[V.id]?.(36)}</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: "'Playfair Display', serif" }}>No leads in this vertical</div>
           <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>Upload a XLSX with loan purpose data</div>
         </Card>
@@ -146,6 +147,56 @@ export default function VerticalsTab({ data }) {
               ))}
             </Card>
           )}
+
+          {/* Vertical Insights */}
+          {(()=>{
+            const vertStats = Object.values(VERTICALS_DEF).map(v => {
+              const base   = all.filter(r => v.purposes.includes(r.purpose));
+              const baseBC = bc.filter(r  => v.purposes.includes(r.purpose));
+              const vl = applyVehicleFilter(base,   v.vehicleFilter);
+              const vb = applyVehicleFilter(baseBC, v.vehicleFilter);
+              const rate = vl.length > 0 ? Math.round(vb.length / vl.length * 100) : 0;
+              return { v, count: vl.length, bcCount: vb.length, rate };
+            }).filter(s => s.count > 0);
+            if (vertStats.length === 0) return null;
+            const maxCount = Math.max(...vertStats.map(s => s.count));
+            const bestBC  = [...vertStats].sort((a, b) => b.rate  - a.rate )[0];
+            const bestVol = [...vertStats].sort((a, b) => b.count - a.count)[0];
+            return (
+              <Card style={{ padding: 20 }}>
+                <SectionTitle>Vertical Insights</SectionTitle>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                  <div style={{ padding: "10px 12px", background: T.surface2, borderRadius: 8, borderTop: `2px solid ${T.green}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>Best BC Rate</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: T.green }}>{bestBC.rate}%</div>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 1 }}>{bestBC.v.label}</div>
+                  </div>
+                  <div style={{ padding: "10px 12px", background: T.surface2, borderRadius: 8, borderTop: `2px solid ${T.blue}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>Highest Volume</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: T.blue }}>{bestVol.count}</div>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 1 }}>{bestVol.v.label}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Leads by Vertical</div>
+                {vertStats.map(({ v, count, rate }) => (
+                  <div key={v.id} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 11, color: T.text, fontWeight: 600 }}>{v.label}</span>
+                      <span style={{ fontSize: 11, fontFamily: "'IBM Plex Mono',monospace" }}>
+                        <span style={{ fontWeight: 700, color: v.color }}>{count}</span>
+                        <span style={{ color: T.muted }}> · </span>
+                        <span style={{ fontWeight: 700, color: T.green }}>{rate}% BC</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 5, background: T.surface2, borderRadius: 3 }}>
+                      <div style={{ height: "100%", width: `${maxCount > 0 ? Math.round(count / maxCount * 100) : 0}%`, background: v.color, borderRadius: 3, transition: "width .4s" }} />
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            );
+          })()}
+
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 
 export default function DataQualityTab({ data }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
   const bc  = data['Bank Connected']  || [];
   const fs  = data['Form Submitted']  || [];
   const inc = data['Incomplete']      || [];
@@ -51,7 +53,7 @@ export default function DataQualityTab({ data }) {
 
   const issues = [];
   if (invalidEmails.length > 0)
-    issues.push({ level: 'error',   msg: `${invalidEmails.length} invalid email format${invalidEmails.length > 1 ? 's' : ''}`, detail: invalidEmails.slice(0, 3).map(r => r.email).join(', ') });
+    issues.push({ level: 'error',   msg: `${invalidEmails.length} invalid email format${invalidEmails.length > 1 ? 's' : ''}`, detail: invalidEmails.slice(0, 3).map(r => r.email ? maskEmail(r.email) : "").join(', ') });
   if (singleName.length > all.length * 0.2)
     issues.push({ level: 'warning', msg: `${singleName.length} leads with only a first name (no surname)`, detail: `${Math.round(singleName.length / all.length * 100)}% of total — may affect partner matching` });
   if (emailVerif.length < all.length * 0.8)
@@ -60,7 +62,11 @@ export default function DataQualityTab({ data }) {
     issues.push({ level: 'ok', msg: 'No critical issues detected', detail: 'Dataset looks clean and ready for partner delivery' });
 
   const issueColor  = { error: T.red,   warning: T.amber,               ok: T.green };
-  const issueIcon   = { error: '🔴',    warning: '🟡',                  ok: '✅' };
+  const issueIcon   = {
+    error:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke={T.red} strokeWidth="1.5"/><line x1="7" y1="4" x2="7" y2="8" stroke={T.red} strokeWidth="1.5" strokeLinecap="round"/><circle cx="7" cy="10.5" r="0.8" fill={T.red}/></svg>,
+    warning: <svg width="14" height="13" viewBox="0 0 14 13" fill="none"><path d="M7 1L13 12H1L7 1Z" stroke={T.amber} strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke={T.amber} strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill={T.amber}/></svg>,
+    ok:      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke={T.green} strokeWidth="1.5"/><path d="M4 7l2 2 4-4" stroke={T.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  };
   const issueBg     = { error: T.redBg, warning: T.amberBg,             ok: '#F0FDF4' };
   const issueBorder = { error: '#FCA5A5', warning: 'rgba(245,158,11,0.3)', ok: 'rgba(16,185,129,0.3)' };
 
@@ -140,7 +146,7 @@ export default function DataQualityTab({ data }) {
             <div style={{ display: 'grid', gap: 8 }}>
               {issues.map((issue, i) => (
                 <div key={i} style={{ padding: '10px 14px', background: issueBg[issue.level], border: `1px solid ${issueBorder[issue.level]}`, borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{issueIcon[issue.level]}</span>
+                  <span style={{ lineHeight: 0, flexShrink: 0, marginTop: 1 }}>{issueIcon[issue.level]}</span>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: issueColor[issue.level] }}>{issue.msg}</div>
                     <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>{issue.detail}</div>
@@ -217,8 +223,8 @@ export default function DataQualityTab({ data }) {
               <div style={{ display: 'grid', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
                 {singleName.slice(0, 8).map((r, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px', background: T.surface2, borderRadius: 6, fontSize: 11 }}>
-                    <span style={{ fontWeight: 600, color: T.text }}>{r.name || '—'}</span>
-                    <span style={{ color: T.muted, fontFamily: 'monospace' }}>{r.email}</span>
+                    <span style={{ fontWeight: 600, color: T.text }}>{r.name ? maskName(r.name) : '—'}</span>
+                    <span style={{ color: T.muted, fontFamily: 'monospace' }}>{r.email ? maskEmail(r.email) : ""}</span>
                   </div>
                 ))}
                 {singleName.length > 8 && <div style={{ fontSize: 10, color: T.muted, textAlign: 'center', padding: '4px' }}>+{singleName.length - 8} more</div>}
@@ -269,7 +275,7 @@ export default function DataQualityTab({ data }) {
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: T.surface2, borderRadius: 7, borderLeft: `3px solid ${T.amber}` }}>
                     <span style={{ fontSize: 11, color: T.muted, fontFamily: "'IBM Plex Mono',monospace", width: 20, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: T.text, fontFamily: "'IBM Plex Mono',monospace", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.email}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: T.text, fontFamily: "'IBM Plex Mono',monospace", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.email ? maskEmail(g.email) : ""}</span>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       {cats.map(cat => (
                         <span key={cat} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, fontFamily: "'IBM Plex Mono',monospace",

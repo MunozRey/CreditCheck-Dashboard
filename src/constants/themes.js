@@ -145,7 +145,7 @@ export function applyTheme(themeName) {
       thead tr { background: #f5f5f5 !important; }
     }
   `;
-  try { localStorage.setItem("cc_theme", themeName); } catch(_){}
+  try { window.storage?.set("cc_theme", themeName).catch(() => {}); } catch(_){}
 }
 
 // Initialise on load

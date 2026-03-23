@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.creditchecker.io)",
+      "Bash(ls \"C:\\\\Users\\\\david\\\\.claude\\\\projects\\\\C--Users-david-OneDrive-Escritorio-CreditCheck-Dashboard\\\\memory\"\" 2>/dev/null || mkdir -p \"C:Usersdavid.claudeprojectsC--Users-david-OneDrive-Escritorio-CreditCheck-Dashboardmemory \")",
+      "Bash(find '/c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard' -name package.json -o -name vite.config.* -o -name next.config.* -o -name webpack.config.* -o -name *.html)",
+      "Bash(wc -l \"/c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard/leads_dashboard_en \\(2\\).jsx\")",
+      "Bash(wc -l \"C:\\\\Users\\\\david\\\\OneDrive\\\\Escritorio\\\\CreditCheck Dashboard\\\\leads_dashboard_en \\(2\\).jsx\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:creditchecker.io)",
+      "Bash(del \"C:\\\\Users\\\\david\\\\OneDrive\\\\Escritorio\\\\CreditCheck Dashboard\\\\src\\\\components\\\\ProgressBar.jsx\")",
+      "Bash(npx vite:*)",
+      "Bash(find 'C:\\\\Users\\\\david\\\\OneDrive\\\\Escritorio\\\\CreditCheck Dashboard' -name *.json -o -name *.env* -o -name .git*)",
+      "Bash(git config:*)",
+      "Bash(gh repo:*)",
+      "Bash(where gh:*)",
+      "Bash(winget list:*)",
+      "Bash(npm run:*)",
+      "Bash(gh pr:*)",
+      "Bash(winget install:*)",
+      "Bash(\"/c/Program Files/GitHub:*)",
+      "Bash(node_modules/.bin/vite build:*)",
+      "Read(//c/Users/david/OneDrive/Escritorio/CreditCheck Dashboard/**)",
+      "Bash(node -e \":*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
+    ]
+  }
+}

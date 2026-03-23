@@ -80,8 +80,8 @@ export default function InsightsTab({ data }) {
   const allLoans   = useMemo(() => clean([...bc, ...fs], 'loanAmount'), [bc, fs]);
   const bcIncomes  = useMemo(() => clean(bc, 'income'), [bc]);
   const fsIncomes  = useMemo(() => clean(fs, 'income'), [fs]);
-  const convRate   = (bc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1);
-  const dropRate   = (inc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1);
+  const convRate   = (bc.length + fs.length + inc.length) > 0 ? (bc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1) : "0.0";
+  const dropRate   = (bc.length + fs.length + inc.length) > 0 ? (inc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1) : "0.0";
   const dti = useMemo(() => [...bc, ...fs].filter(r => r.income && r.expenses).map(r => Math.round((r.expenses / r.income) * 100)), [bc, fs]);
 
   const COLORS = [T.navy, T.blue, T.blue2, T.blue3, T.green, T.amber, T.red];

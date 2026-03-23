@@ -194,7 +194,7 @@ export default function AnalyticsTab({ data }) {
             </div>
           </div>
         </SectionTitle>
-        {bcOnlyMode && <div style={{ marginBottom: 12, padding: "8px 12px", background: T.amberBg, borderRadius: 8, fontSize: 11, color: T.amber, border: `1px solid ${T.amber}40` }}>⚠️ Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
+        {bcOnlyMode && <div style={{ marginBottom: 12, padding: "8px 12px", background: T.amberBg, borderRadius: 8, fontSize: 11, color: T.amber, border: `1px solid ${T.amber}40`, display: "flex", alignItems: "center", gap: 6 }}><svg width="13" height="12" viewBox="0 0 14 13" fill="none" style={{ flexShrink: 0 }}><path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><line x1="7" y1="5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="10" r="0.7" fill="currentColor"/></svg> Projection based on BC only — FS leads are currently not being added to the pipeline.</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
           {[["7 days", 7], ["30 days", 30], ["90 days", 90], ["12 months", 365]].map(([label, days]) => {
             const projBC    = Math.round(dailyBCAvg * days);

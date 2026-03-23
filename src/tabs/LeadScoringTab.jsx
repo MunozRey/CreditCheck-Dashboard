@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { scoreLead, EMP_OPTIONS } from '../utils/scoring.js';
 import { VERTICALS_DEF } from '../constants/verticals.js';
 import Card from '../components/Card.jsx';
@@ -12,6 +13,7 @@ const PAGE_SIZE = 50;
 
 export default function LeadScoringTab({ data }) {
   const { T } = useTheme();
+  const { maskName, maskEmail } = usePrivacy();
 
   // Local grade color helper using context T (avoids global T dependency)
   const gradeColor = (s) => s >= 75 ? T.green : s >= 50 ? T.blue : s >= 30 ? T.amber : T.red;
@@ -62,8 +64,8 @@ export default function LeadScoringTab({ data }) {
     else if (sortBy === "income") rows = [...rows].sort((a, b) => (b.income || 0) - (a.income || 0));
     else if (sortBy === "loan")   rows = [...rows].sort((a, b) => (b.loanAmount || 0) - (a.loanAmount || 0));
     else if (sortBy === "dti")    rows = [...rows].sort((a, b) => {
-      const da = a.income > 0 ? a.expenses / a.income : 99;
-      const db = b.income > 0 ? b.expenses / b.income : 99;
+      const da = (a.income != null && parseFloat(a.income) > 0) ? parseFloat(a.expenses) / parseFloat(a.income) : 99;
+      const db = (b.income != null && parseFloat(b.income) > 0) ? parseFloat(b.expenses) / parseFloat(b.income) : 99;
       return da - db;
     });
     else if (sortBy === "name") rows = [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -87,7 +89,7 @@ export default function LeadScoringTab({ data }) {
 
   if (!isEnriched) return (
     <Card style={{ padding: 48, textAlign: "center" }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+      <div style={{ marginBottom: 12, color: T.muted, lineHeight: 0 }}><svg width="36" height="32" viewBox="0 0 32 28" fill="none"><rect x="2" y="12" width="7" height="14" rx="1" fill="currentColor" fillOpacity="0.3"/><rect x="13" y="4" width="7" height="22" rx="1" fill="currentColor" fillOpacity="0.7"/><rect x="24" y="8" width="7" height="18" rx="1" fill="currentColor" fillOpacity="0.5"/></svg></div>
       <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: "'Playfair Display', serif" }}>Lead Scoring requires enriched data</div>
       <div style={{ fontSize: 12, color: T.muted, marginTop: 6 }}>Upload a CreditCheck XLSX (Rasmus format) with income, DTI and employment data</div>
     </Card>
@@ -121,7 +123,7 @@ export default function LeadScoringTab({ data }) {
 
           <select value={vertical} onChange={e => setVertical(e.target.value)} style={{ border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, background: T.surface2, fontFamily: "'Geist',sans-serif", outline: "none" }}>
             <option value="all">All Verticals</option>
-            {Object.values(VERTICALS_DEF).map(v => <option key={v.id} value={v.id}>{v.icon} {v.label}</option>)}
+            {Object.values(VERTICALS_DEF).map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
 
           <select value={empFilter} onChange={e => setEmpFilter(e.target.value)} style={{ border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, background: T.surface2, fontFamily: "'Geist',sans-serif", outline: "none" }}>
@@ -218,8 +220,8 @@ export default function LeadScoringTab({ data }) {
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "9px 12px", color: T.muted, fontVariantNumeric: "tabular-nums", fontFamily: "'IBM Plex Mono',monospace" }}>{page * PAGE_SIZE + i + 1}</td>
                     <td style={{ padding: "9px 12px" }}>
-                      <div style={{ fontWeight: 600, color: T.text }}>{r.name || "—"}</div>
-                      <div style={{ fontSize: 10, color: T.muted }}>{r.email || ""}</div>
+                      <div style={{ fontWeight: 600, color: T.text }}>{r.name ? maskName(r.name) : "—"}</div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{r.email ? maskEmail(r.email) : ""}</div>
                     </td>
                     <td style={{ padding: "9px 12px", width: 120 }}>
                       <ScoreBar score={r._score} />
@@ -257,7 +259,7 @@ export default function LeadScoringTab({ data }) {
                       {(r.employment || "—").replace(/_/g, " ")}
                     </td>
                     <td style={{ padding: "9px 12px" }}>
-                      {purp ? <span style={{ fontSize: 10, fontWeight: 600, color: purp.color, background: `${purp.color}10`, padding: "2px 8px", borderRadius: 20, border: `1px solid ${purp.color}30` }}>{purp.icon} {purp.label}</span> : <span style={{ color: T.muted, fontSize: 11 }}>—</span>}
+                      {purp ? <span style={{ fontSize: 10, fontWeight: 600, color: purp.color, background: `${purp.color}10`, padding: "2px 8px", borderRadius: 20, border: `1px solid ${purp.color}30` }}>{purp.label}</span> : <span style={{ color: T.muted, fontSize: 11 }}>—</span>}
                     </td>
                     <td style={{ padding: "9px 12px" }}>
                       {r.emailVerified

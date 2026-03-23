@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { usePrivacy } from '../context/PrivacyContext.jsx';
 import { scoreLead, scoreLeadFactors } from '../utils/scoring.js';
 import Avatar from './Avatar.jsx';
 import { toTitleCase } from '../utils/format.js';
@@ -27,7 +28,16 @@ function FieldRow({ label, value, mono, T }) {
 
 export default function LeadDrawer({ lead, onClose }) {
   const { T } = useTheme();
-  const [copied, setCopied] = useState(false);
+  const { maskName, maskEmail } = usePrivacy();
+  const [copied, setCopied]           = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // Close on ESC key
+  React.useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   if (!lead) return null;
 
@@ -49,6 +59,15 @@ export default function LeadDrawer({ lead, onClose }) {
     } catch(_) {}
   };
 
+  const handleCopyEmail = () => {
+    if (!lead.email) return;
+    try {
+      navigator.clipboard.writeText(lead.email);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 1800);
+    } catch(_) {}
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -56,7 +75,7 @@ export default function LeadDrawer({ lead, onClose }) {
 
       {/* Drawer panel */}
       <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
+        position: "fixed", top: 0, right: 0, bottom: 0, width: "clamp(480px, 40vw, 680px)",
         background: T.surface, borderLeft: `1px solid ${T.border}`,
         zIndex: 201, display: "flex", flexDirection: "column",
         boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
@@ -66,10 +85,10 @@ export default function LeadDrawer({ lead, onClose }) {
 
         {/* Header */}
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12, background: T.surface2, flexShrink: 0 }}>
-          <Avatar name={toTitleCase(lead.name)} size={38} />
+          <Avatar name={maskName(toTitleCase(lead.name))} size={38} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {lead.name ? toTitleCase(lead.name) : "Unknown"}
+              {lead.name ? maskName(toTitleCase(lead.name)) : "Unknown"}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
@@ -84,6 +103,11 @@ export default function LeadDrawer({ lead, onClose }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            {lead.email && (
+              <button onClick={handleCopyEmail} title="Copy email address" style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${emailCopied ? T.green : T.border}`, background: emailCopied ? T.green : T.surface, color: emailCopied ? "#fff" : T.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'IBM Plex Mono',monospace", transition: "all .15s" }}>
+                {emailCopied ? "✓ Email copied" : "@ Copy email"}
+              </button>
+            )}
             <button onClick={handleCopy} title="Copy as JSON" style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: copied ? T.green : T.surface, color: copied ? "#fff" : T.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'IBM Plex Mono',monospace", transition: "all .15s" }}>
               {copied ? "✓ Copied" : "</> JSON"}
             </button>
@@ -123,7 +147,7 @@ export default function LeadDrawer({ lead, onClose }) {
           {/* Contact & Identity */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: T.muted, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'IBM Plex Mono',monospace" }}>Contact & Identity</div>
-            <FieldRow label="Email"       value={lead.email}                              mono T={T} />
+            <FieldRow label="Email"       value={lead.email ? maskEmail(lead.email) : null} mono T={T} />
             <FieldRow label="Age"         value={lead.age ? `${lead.age} years` : null}  T={T} />
             <FieldRow label="Language"    value={lead.language}                           T={T} />
             <FieldRow label="Country"     value={lead.country}                            T={T} />
