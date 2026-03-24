@@ -11,6 +11,7 @@ import KeyboardHelp from './components/KeyboardHelp.jsx';
 import CreditCheckerLogo from './components/CreditCheckerLogo.jsx';
 import SettingsPanel, { DEFAULT_SETTINGS } from './components/SettingsPanel.jsx';
 import MortgageDashboard from './components/MortgageDashboard.jsx';
+import TeamPanel from './components/TeamPanel.jsx';
 
 import LeadsTab        from './tabs/LeadsTab.jsx';
 import AnalyticsTab    from './tabs/AnalyticsTab.jsx';
@@ -73,6 +74,8 @@ function AppInner() {
   const [showExportMenu,  setShowExportMenu]  = useState(false);
   const [showKeyHelp,     setShowKeyHelp]     = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
+  const [showTeamPanel,   setShowTeamPanel]   = useState(false);
+  const [backendRole,     setBackendRole]     = useState(null);
   const exportMenuRef = useRef(null);
 
   // ── Dashboard settings — persisted ────────────────────────────────────────
@@ -148,11 +151,12 @@ function AppInner() {
       .then(async (info) => {
         setGoogleUser({ email: info.email, name: info.name, picture: info.picture });
         // Auto-login to shared backend with the verified Google email
-        const ok = await loginToBackend(info.email);
-        if (ok) {
+        const loginResult = await loginToBackend(info.email);
+        if (loginResult) {
+          setBackendRole(loginResult.role || "viewer");
           const backendData = await getLeadsFromBackend();
           if (backendData) {
-            userUploadedRef.current = true; // treat backend data as "uploaded" to skip live fetch
+            userUploadedRef.current = true;
             setData(backendData);
           }
         }
@@ -277,6 +281,14 @@ function AppInner() {
             userUploadedRef.current = true;
             setData(backendData);
             loadedFromBackend = true;
+            // Restore role from cached JWT
+            try {
+              const cached = sessionStorage.getItem("_cc_backend_jwt");
+              if (cached) {
+                const payload = JSON.parse(atob(cached.split(".")[1]));
+                setBackendRole(payload.role || "viewer");
+              }
+            } catch(_) {}
           }
         }
       } catch(_) {}
@@ -550,6 +562,20 @@ function AppInner() {
               <span style={{ fontSize:9, color:storageReady?T.green:T.muted, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:0.5 }}>{storageReady?"SAVED":"..."}</span>
             </div>
 
+            {/* Team button — only when logged into backend */}
+            {backendRole && (
+              <button
+                className="cc-btn"
+                onClick={() => setShowTeamPanel(v => !v)}
+                title="Manage team access"
+                style={{ display:"flex", alignItems:"center", gap:4, padding:"5px 10px", borderRadius:7, border:`1px solid ${showTeamPanel ? T.blue : T.border}`, background:showTeamPanel?`${T.blue}15`:T.surface2, color:showTeamPanel?T.blue:T.muted, fontSize:11, fontWeight:500, cursor:"pointer", flexShrink:0 }}>
+                <svg width="12" height="12" fill="none" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 11-4 0 2 2 0 014 0zM15.89 17.05A6 6 0 0010 13a6 6 0 00-5.89 4.05" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                Team
+              </button>
+            )}
+
             {/* Settings button */}
             <button className="cc-btn" onClick={() => setShowSettings(v => !v)} title="Dashboard settings" style={{ width:28, height:28, borderRadius:6, border:`1px solid ${showSettings?T.blue:T.border}`, background:showSettings?`${T.blue}15`:T.surface2, color:showSettings?T.blue:T.muted, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
               <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
@@ -758,6 +784,9 @@ function AppInner() {
 
       {/* Settings panel */}
       {showSettings && <SettingsPanel settings={settings} onSave={saveSettings} onClose={() => setShowSettings(false)} />}
+
+      {/* Team panel */}
+      {showTeamPanel && <TeamPanel currentUserRole={backendRole} onClose={() => setShowTeamPanel(false)} />}
     </div>
   );
 }

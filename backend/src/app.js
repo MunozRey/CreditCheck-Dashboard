@@ -12,6 +12,7 @@ const morgan  = require("morgan");
 
 const authRoutes  = require("./routes/auth");
 const leadsRoutes = require("./routes/leads");
+const usersRoutes = require("./routes/users");
 const { globalRateLimiter } = require("./middleware/rateLimiter");
 const { httpsRedirect }     = require("./middleware/security");
 
@@ -69,6 +70,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok", timestamp: new Date()
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/auth",  authRoutes);
 app.use("/leads", leadsRoutes);
+app.use("/users", usersRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));

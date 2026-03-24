@@ -28,7 +28,13 @@ export async function loginToBackend(email) {
     const cached = sessionStorage.getItem(SESSION_KEY);
     if (cached) {
       _jwt = cached;
-      return true;
+      // Decode role from JWT payload (no crypto needed — just base64)
+      try {
+        const payload = JSON.parse(atob(cached.split(".")[1]));
+        return { email: payload.email, role: payload.role || "viewer" };
+      } catch (_) {
+        return { email, role: "viewer" };
+      }
     }
 
     const res = await fetch(`${BACKEND_URL}/auth/login`, {
@@ -36,12 +42,12 @@ export async function loginToBackend(email) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    if (!res.ok) return false;
-    const { token } = await res.json();
-    if (!token) return false;
-    _jwt = token;
-    try { sessionStorage.setItem(SESSION_KEY, token); } catch (_) {}
-    return true;
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.token) return null;
+    _jwt = data.token;
+    try { sessionStorage.setItem(SESSION_KEY, data.token); } catch (_) {}
+    return data.user || { email, role: "viewer" };
   } catch (_) {
     return false;
   }
