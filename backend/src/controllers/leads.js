@@ -2,8 +2,7 @@
  * Leads controller — CRUD for leads with activity logging.
  */
 
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../db");
 
 /**
  * GET /leads

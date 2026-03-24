@@ -5,9 +5,8 @@
  * simplest secure pattern for a small internal team.
  */
 
-const jwt = require("jsonwebtoken");
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const jwt    = require("jsonwebtoken");
+const prisma = require("../db");
 
 /**
  * POST /auth/login
