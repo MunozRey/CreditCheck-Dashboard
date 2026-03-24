@@ -41,7 +41,7 @@ async function listLeads(req, res, next) {
  */
 async function createLead(req, res, next) {
   try {
-    const { companyName, contactName, contactEmail, product, stage, source, score } =
+    const { companyName, contactName, contactEmail, product, stage, source, score, rawData } =
       req.body;
 
     const lead = await prisma.$transaction(async (tx) => {
@@ -54,6 +54,7 @@ async function createLead(req, res, next) {
           stage,
           source,
           score: score ?? 0,
+          rawData: rawData ?? null,
         },
       });
 
@@ -180,4 +181,65 @@ async function createActivity(req, res, next) {
   }
 }
 
-module.exports = { listLeads, createLead, updateLead, getActivity, createActivity };
+/**
+ * POST /leads/batch
+ * Body: { leads: Array<{ companyName, contactName, contactEmail, product, stage, source, score?, rawData? }> }
+ * Clears all existing leads for the given product then inserts the new batch.
+ * Used by the frontend to sync a full XLSX upload to the shared backend.
+ */
+async function batchCreateLeads(req, res, next) {
+  try {
+    const { leads } = req.body;
+
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return res.status(422).json({ error: "leads must be a non-empty array." });
+    }
+
+    // Derive product from first lead (all leads in a batch share the same product)
+    const product = leads[0].product || "creditcheck";
+
+    await prisma.$transaction(async (tx) => {
+      // Delete all existing leads (and their activity logs via cascade) for this product
+      await tx.lead.deleteMany({ where: { product } });
+
+      // Insert all new leads
+      await tx.lead.createMany({
+        data: leads.map((l) => ({
+          companyName:  l.companyName  || "Unknown",
+          contactName:  l.contactName  || "Unknown",
+          contactEmail: l.contactEmail || "",
+          product:      l.product      || product,
+          stage:        l.stage        || "incomplete",
+          source:       l.source       || "xlsx_upload",
+          score:        l.score        ?? 0,
+          rawData:      l.rawData      ?? null,
+        })),
+        skipDuplicates: false,
+      });
+
+      // Log the batch upload as a single activity on a synthetic "batch" record
+      // by logging against the first inserted lead
+      const first = await tx.lead.findFirst({
+        where: { product },
+        orderBy: { createdAt: "asc" },
+      });
+      if (first) {
+        await tx.activityLog.create({
+          data: {
+            leadId: first.id,
+            userId: req.user.id,
+            action: "batch_upload",
+            notes: `${leads.length} leads uploaded by ${req.user.email}`,
+          },
+        });
+      }
+    });
+
+    const count = await prisma.lead.count({ where: { product } });
+    return res.status(201).json({ synced: count, product });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listLeads, createLead, updateLead, getActivity, createActivity, batchCreateLeads };

@@ -5,6 +5,7 @@ const {
   updateLead,
   getActivity,
   createActivity,
+  batchCreateLeads,
 } = require("../controllers/leads");
 const { requireAuth } = require("../middleware/auth");
 const {
@@ -25,6 +26,9 @@ router.get("/", validateLeadsQuery, listLeads);
 
 // POST /leads          — create a new lead
 router.post("/", validateCreateLead, createLead);
+
+// POST /leads/batch    — replace all leads with a full XLSX upload (bulk sync)
+router.post("/batch", batchCreateLeads);
 
 // PATCH /leads/:id     — update lead stage / score / fields
 router.patch("/:id", validateUpdateLead, updateLead);

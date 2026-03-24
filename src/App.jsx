@@ -29,6 +29,8 @@ import { loadGIS, createTokenClient, requestToken, fetchGoogleUserInfo } from '.
 import { newPartner }    from './utils/revenue.js';
 import { fmtAgo }        from './utils/format.js';
 import { T as THEME_T } from './constants/themes.js';
+import { loginToBackend, restoreCachedAuth, hasBackend } from './api/apiClient.js';
+import { getLeadsFromBackend, syncLeadsToBackend } from './api/leadsApi.js';
 
 // Applies settings accent-color overrides onto the mutable T proxy.
 // Must be called AFTER applyThemeBase so it overwrites the theme defaults.
@@ -143,7 +145,18 @@ function AppInner() {
       if (tokenClientRef.current) requestToken(tokenClientRef.current, true);
     }, Math.max(0, (expiresIn - 300) * 1000));
     fetchGoogleUserInfo(token)
-      .then(info => setGoogleUser({ email: info.email, name: info.name, picture: info.picture }))
+      .then(async (info) => {
+        setGoogleUser({ email: info.email, name: info.name, picture: info.picture });
+        // Auto-login to shared backend with the verified Google email
+        const ok = await loginToBackend(info.email);
+        if (ok) {
+          const backendData = await getLeadsFromBackend();
+          if (backendData) {
+            userUploadedRef.current = true; // treat backend data as "uploaded" to skip live fetch
+            setData(backendData);
+          }
+        }
+      })
       .catch(() => {});
     lastFetchRef.current = 0;
     runFetchCore(true, token);
@@ -255,18 +268,33 @@ function AppInner() {
           if (parsed && typeof parsed === "object") setMortgageData(parsed);
         }
       } catch(_) {}
-      // Restore uploaded XLSX rows — must happen before storageReady triggers runFetch
+      // Try to load leads from the shared backend first (requires cached JWT)
+      let loadedFromBackend = false;
       try {
-        const rUploaded = await window.storage.get("cc_user_uploaded");
-        if (rUploaded?.value === "true") {
-          userUploadedRef.current = true;
-          const rRows = await window.storage.get("cc_rows");
-          if (rRows?.value) {
-            const parsed = JSON.parse(rRows.value);
-            if (parsed && typeof parsed === "object") setData(parsed);
+        if (hasBackend() && restoreCachedAuth()) {
+          const backendData = await getLeadsFromBackend();
+          if (backendData) {
+            userUploadedRef.current = true;
+            setData(backendData);
+            loadedFromBackend = true;
           }
         }
       } catch(_) {}
+
+      // Restore uploaded XLSX rows from localStorage only if backend had nothing
+      if (!loadedFromBackend) {
+        try {
+          const rUploaded = await window.storage.get("cc_user_uploaded");
+          if (rUploaded?.value === "true") {
+            userUploadedRef.current = true;
+            const rRows = await window.storage.get("cc_rows");
+            if (rRows?.value) {
+              const parsed = JSON.parse(rRows.value);
+              if (parsed && typeof parsed === "object") setData(parsed);
+            }
+          }
+        } catch(_) {}
+      }
       clearTimeout(fallback);
       setStorageReady(true);
     })();
@@ -313,9 +341,11 @@ function AppInner() {
     setData(creditData);
     setMortgageData(md);
     setUpload(false);
-    // Persist uploaded rows so they survive page reloads
+    // Persist uploaded rows locally so they survive page reloads
     window.storage.set("cc_user_uploaded", "true").catch(() => {});
     window.storage.set("cc_rows", JSON.stringify(creditData)).catch(() => {});
+    // Sync to shared backend so all teammates see the same data
+    syncLeadsToBackend(creditData).catch(() => {});
   }, []);
 
   // ── Close export dropdown on outside click ─────────────────────────────────
