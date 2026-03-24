@@ -48,6 +48,8 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
 
   const allLeads = useMemo(() => (data[cat] || []).map(r => ({ ...r, cat })), [data, cat]);
 
+  // Summary stats derived from filtered leads (computed after filter memo below)
+
   const allPurposes  = useMemo(() => [...new Set(allLeads.map(r => r.purpose).filter(Boolean))].sort(), [allLeads]);
   const allCountries = useMemo(() => [...new Set(allLeads.map(r => r.country).filter(Boolean))].sort(), [allLeads]);
   const allEmp       = useMemo(() => [...new Set(allLeads.map(r => (r.employment || "")).filter(Boolean))].sort(), [allLeads]);
@@ -77,6 +79,14 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const hasFilters = !!(search || dateFrom || dateTo || purposeFilter !== "all" || empFilter !== "all" || countryFilter !== "all" || verifiedFilter !== "all" || starOnly);
   const clearFilters = () => { setSearch(""); setDateFrom(""); setDateTo(""); setPurposeFilter("all"); setEmpFilter("all"); setCountryFilter("all"); setVerifiedFilter("all"); setStarOnly(false); };
 
+  const bcFiltered       = filtered.filter(r => r.cat === "Bank Connected");
+  const emailVerifCount  = filtered.filter(r => r.emailVerified).length;
+  const incomes          = filtered.map(r => r.income).filter(Boolean);
+  const loans            = filtered.map(r => r.loanAmount).filter(Boolean);
+  const summAvgIncome    = incomes.length ? Math.round(incomes.reduce((s, v) => s + v, 0) / incomes.length) : null;
+  const summAvgLoan      = loans.length   ? Math.round(loans.reduce((s, v) => s + v, 0) / loans.length)   : null;
+  const fmtK = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
+
   const visibleColList = ALL_COLUMNS.filter(c => c.always || visibleCols.has(c.key));
 
   const toggleCol = (key) => {
@@ -90,10 +100,11 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const inputStyle = { border: `1px solid ${T.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 11, color: T.text, outline: "none", background: T.surface2, fontFamily: "'Geist',sans-serif" };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "188px 1fr", gap: 16 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "188px 1fr", gap: 16, alignItems: "start" }}>
 
-      {/* Category sidebar */}
-      <Card style={{ padding: "12px 10px", height: "fit-content" }}>
+      {/* Left column: categories + summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <Card style={{ padding: "12px 10px" }}>
         <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, marginBottom: 10, letterSpacing: 1.5, textTransform: "uppercase", padding: "0 6px" }}>Categories</div>
         {["Bank Connected", "Form Submitted", "Incomplete"].map(c => {
           const count = (data[c] || []).length, active = cat === c, s = CAT_STYLE[c];
@@ -114,6 +125,27 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
           );
         })}
       </Card>
+
+      {/* Summary stats */}
+      <Card style={{ padding: "14px 16px" }}>
+        <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, marginBottom: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>Showing</div>
+        <div style={{ fontSize: 22, fontWeight: 900, color: T.text, marginBottom: 10 }}>{filtered.length} <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>leads</span></div>
+        {[
+          { label: "Bank Connected",  value: `${bcFiltered.length}`,              sub: filtered.length ? `${Math.round(bcFiltered.length / filtered.length * 100)}%` : null, color: T.green },
+          { label: "Email Verified",  value: `${emailVerifCount}`,                sub: filtered.length ? `${Math.round(emailVerifCount / filtered.length * 100)}%` : null,  color: T.blue },
+          { label: "Avg Income",      value: summAvgIncome ? fmtK(summAvgIncome) + "/mo" : "—", sub: null, color: T.navy },
+          { label: "Avg Loan",        value: summAvgLoan   ? fmtK(summAvgLoan)            : "—", sub: null, color: T.navy },
+        ].map(({ label, value, sub, color }) => (
+          <div key={label} style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color }}>
+              {value}{sub && <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, marginLeft: 4 }}>({sub})</span>}
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      </div>{/* end left column */}
 
       <Card>
         {/* Toolbar row 1 */}

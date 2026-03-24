@@ -49,7 +49,7 @@ export default function VerticalsTab({ data }) {
   return (
     <div style={{ display: "grid", gap: 18 }}>
       {/* Vertical Selector Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
         {Object.values(VERTICALS_DEF).map(v => {
           const base = [...bc, ...fs].filter(r => v.purposes.includes(r.purpose));
           const bBC  = bc.filter(r => v.purposes.includes(r.purpose));
@@ -78,22 +78,19 @@ export default function VerticalsTab({ data }) {
         })}
       </div>
 
-      {/* Heuristic notice for vehicle sub-verticals */}
-      {V.vehicleFilter && (
+      {/* Vehicle notice */}
+      {V.id === "vehicle" && (
         <div style={{
           display: "flex", alignItems: "flex-start", gap: 10,
           padding: "10px 16px",
-          background: V.vehicleFilter === "secured" ? T.redBg : T.amberBg,
-          border: `1px solid ${V.vehicleFilter === "secured" ? "rgba(239,68,68,0.3)" : "rgba(245,158,11,0.4)"}`,
-          borderRadius: 8, fontSize: 11,
-          color: V.vehicleFilter === "secured" ? "#9F1239" : "#78350F",
+          background: T.amberBg,
+          border: "1px solid rgba(245,158,11,0.4)",
+          borderRadius: 8, fontSize: 11, color: "#78350F",
         }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</span>
           <div style={{ lineHeight: 1.6 }}>
-            <strong>Heuristic segmentation — no explicit field in source data.</strong>{" "}
-            {V.vehicleFilter === "unsecured"
-              ? "Leads classified as unsecured personal credit based on loan ≤€15k AND term ≤60 months. The vehicle is the stated purchase destination, not the collateral. Underwriting is based on income and DTI."
-              : "Leads classified as vehicle-secured based on loan >€15k OR term >60 months — amounts/terms that are not viable as unsecured personal credit at these income levels. Partner must have vehicle valuation and collateral registration capability (reserva de dominio / prenda sin desplazamiento)."}
+            <strong>Source data does not distinguish unsecured vs secured vehicle credit.</strong>{" "}
+            All vehicle-purpose leads are grouped here. Partners should qualify individually based on loan size and term.
           </div>
         </div>
       )}
