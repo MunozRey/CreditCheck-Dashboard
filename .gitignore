@@ -1,7 +1,14 @@
 node_modules/
+backend/node_modules/
 dist/
+backend/dist/
 .env
+backend/.env
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
 .env.local
 *.local
 .DS_Store
 Thumbs.db
+*.log
+npm-debug.log*

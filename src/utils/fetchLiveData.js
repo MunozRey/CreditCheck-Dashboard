@@ -39,7 +39,7 @@ export function invalidateCache() { _cache = null; }
  * @throws {Error} If fetch fails (CORS, network, HTTP error, auth) or file is empty.
  *   401 errors additionally set err.isUnauthorized = true so callers can re-trigger OAuth.
  */
-async function fetchLiveData(processRows) {
+async function fetchLiveData(processRows, accessToken = '') {
   // Return cached data if fresh
   if (_cache && Date.now() - _cache.fetchedAt < CACHE_TTL_MS) {
     return _cache.data;

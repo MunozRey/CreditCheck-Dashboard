@@ -1,0 +1,155 @@
+{
+  "info": {
+    "name": "CreditCheck Dashboard API",
+    "description": "Clovr Labs — Internal leads management API",
+    "_postman_id": "creditcheck-clovrlabs-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001", "type": "string" },
+    { "key": "token",    "value": "",                      "type": "string" },
+    { "key": "lead_id",  "value": "",                      "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => pm.expect(json.token).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"david@clovrlabs.com\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "item": [
+        {
+          "name": "GET /leads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/leads?product=creditcheck&stage=prospect",
+              "host": ["{{base_url}}"],
+              "path": ["leads"],
+              "query": [
+                { "key": "product", "value": "creditcheck", "disabled": false },
+                { "key": "stage",   "value": "prospect",    "disabled": true },
+                { "key": "from",    "value": "2025-01-01",  "disabled": true },
+                { "key": "to",      "value": "2026-12-31",  "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /leads",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('lead_id', json.id); }",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"contactName\": \"Jane Smith\",\n  \"contactEmail\": \"jane@acme.com\",\n  \"product\": \"creditcheck\",\n  \"stage\": \"prospect\",\n  \"source\": \"website\",\n  \"score\": 72\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads", "host": ["{{base_url}}"], "path": ["leads"] }
+          }
+        },
+        {
+          "name": "PATCH /leads/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stage\": \"demo_scheduled\",\n  \"score\": 85\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{lead_id}}", "host": ["{{base_url}}"], "path": ["leads", "{{lead_id}}"] }
+          }
+        },
+        {
+          "name": "GET /leads/:id/activity",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/leads/{{lead_id}}/activity", "host": ["{{base_url}}"], "path": ["leads", "{{lead_id}}", "activity"] }
+          }
+        },
+        {
+          "name": "POST /leads/:id/activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"call\",\n  \"notes\": \"Spoke with Jane, very interested. Follow up in 1 week.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{lead_id}}/activity", "host": ["{{base_url}}"], "path": ["leads", "{{lead_id}}", "activity"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+  ]
+}

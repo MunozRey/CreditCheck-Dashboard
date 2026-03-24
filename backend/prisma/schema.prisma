@@ -1,0 +1,55 @@
+// Prisma schema for CreditCheck Dashboard — Clovr Labs
+//
+// Production (Render): provider = "postgresql"
+// Local dev sin Docker:  cambiar a provider = "sqlite" y DATABASE_URL="file:./dev.db"
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String        @id @default(uuid())
+  email       String        @unique
+  // "admin" | "viewer"
+  role        String        @default("viewer")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  activities  ActivityLog[]
+
+  @@map("users")
+}
+
+model Lead {
+  id           String        @id @default(uuid())
+  companyName  String        @map("company_name")
+  contactName  String        @map("contact_name")
+  contactEmail String        @map("contact_email")
+  // "creditcheck" | "ibancheck"
+  product      String
+  stage        String
+  source       String
+  score        Int           @default(0)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  activities   ActivityLog[]
+
+  @@map("leads")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  userId    String   @map("user_id")
+  action    String
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("activity_log")
+}

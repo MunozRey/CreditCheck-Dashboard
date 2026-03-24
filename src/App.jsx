@@ -156,10 +156,10 @@ function AppInner() {
         tokenClientRef.current = createTokenClient(
           GOOGLE_CLIENT_ID,
           handleTokenSuccess,
-          (err) => console.warn('[GoogleAuth] Token error:', err),
+          () => {},
         );
       })
-      .catch(err => console.warn('[GoogleAuth] GIS load failed:', err));
+      .catch(() => {});
     return () => clearTimeout(tokenRefreshTimerRef.current);
   }, [GOOGLE_CLIENT_ID, handleTokenSuccess]);
 
