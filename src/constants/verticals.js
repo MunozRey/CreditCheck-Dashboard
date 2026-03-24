@@ -18,7 +18,7 @@ export const COUNTRY_META = {
 // home_improvement: unsecured personal credit up to €50k, faster closing
 export const VERTICALS_DEF = {
   personal_loans: {
-    id:"personal_loans", label:"Personal Loans", icon:"💳",
+    id:"personal_loans", label:"Personal Loans",
     color:"#005EFF", lightBg:T.surface3, border:"rgba(59,130,246,0.3)",
     purposes:["personal_expenses","other","holiday","education","it_equipment"],
     desc:"Unsecured consumer credit — expenses, lifestyle, education",
@@ -28,7 +28,7 @@ export const VERTICALS_DEF = {
     stats:{ avgIncome:2017, avgLoan:7511, avgAge:51, bcRate:39 },
   },
   reform: {
-    id:"reform", label:"Home Reform", icon:"🔨",
+    id:"reform", label:"Home Reform",
     color:"#00A651", lightBg:"#EDFAF3", border:"rgba(16,185,129,0.3)",
     purposes:["home_improvement"],
     desc:"Home reform & improvement — unsecured credit, no property appraisal",
@@ -39,7 +39,7 @@ export const VERTICALS_DEF = {
     insightNote:"83% of reform leads request <€15k — typical unsecured personal credit range. Only 13 leads request >€15k where secured products might apply.",
   },
   mortgage: {
-    id:"mortgage", label:"Mortgage / Refinance", icon:"🏦",
+    id:"mortgage", label:"Refinance", icon:"🏦",
     color:"#6D28D9", lightBg:T.surface3, border:"rgba(139,92,246,0.3)",
     purposes:["refinance"],
     desc:"Mortgage refinancing — tied to property valuation, regulated product",
@@ -48,7 +48,7 @@ export const VERTICALS_DEF = {
     modelNote:"CPL €20–50 or fixed fee per qualified lead · regulated by LCCI · longer sales cycle",
     stats:{ avgIncome:2009, avgLoan:14893, avgAge:52, bcRate:25, homeowners:39 },
     insightNote:"25% BC rate is lower — expected for mortgage (higher intent bar). 82% have existing loans (refinance intent confirmed). Needs LCCI compliance from partner.",
-    regulatory:"⚖️ LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
+    regulatory:"LCCI regulated (Ley 5/2019) · Intermediarios hipotecarios need BDER registration · Mandatory cooling-off period",
   },
   vehicle: {
     id:"vehicle", label:"Vehicle", icon:"🚗",

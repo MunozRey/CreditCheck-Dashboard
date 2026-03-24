@@ -80,8 +80,8 @@ export default function InsightsTab({ data }) {
   const allLoans   = useMemo(() => clean([...bc, ...fs], 'loanAmount'), [bc, fs]);
   const bcIncomes  = useMemo(() => clean(bc, 'income'), [bc]);
   const fsIncomes  = useMemo(() => clean(fs, 'income'), [fs]);
-  const convRate   = (bc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1);
-  const dropRate   = (inc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1);
+  const convRate   = (bc.length + fs.length + inc.length) > 0 ? (bc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1) : "0.0";
+  const dropRate   = (bc.length + fs.length + inc.length) > 0 ? (inc.length / (bc.length + fs.length + inc.length) * 100).toFixed(1) : "0.0";
   const dti = useMemo(() => [...bc, ...fs].filter(r => r.income && r.expenses).map(r => Math.round((r.expenses / r.income) * 100)), [bc, fs]);
 
   const COLORS = [T.navy, T.blue, T.blue2, T.blue3, T.green, T.amber, T.red];
@@ -104,7 +104,7 @@ export default function InsightsTab({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.6} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip hint="Monthly net income bucket. BC leads typically cluster in higher income brackets." />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="BC"  name="Bank Connected" fill={T.navy}  radius={[4, 4, 0, 0]} />
               <Bar dataKey="FS"  name="Form Submitted" fill={T.blue3} radius={[4, 4, 0, 0]} />
@@ -120,7 +120,7 @@ export default function InsightsTab({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.6} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip hint="Age bracket of applicants. Prime segment (30–55) scores highest on the age factor." />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="BC" name="Bank Connected" fill={T.navy}  radius={[4, 4, 0, 0]} />
               <Bar dataKey="FS" name="Form Submitted" fill={T.blue3} radius={[4, 4, 0, 0]} />
@@ -179,7 +179,7 @@ export default function InsightsTab({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} strokeOpacity={0.6} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip hint="Requested loan amount bracket. Larger loans correlate with higher income and stronger DTI." />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="BC" name="Bank Connected" fill={T.navy}  radius={[4, 4, 0, 0]} />
               <Bar dataKey="FS" name="Form Submitted" fill={T.blue3} radius={[4, 4, 0, 0]} />

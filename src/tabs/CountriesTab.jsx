@@ -3,13 +3,34 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import Card from '../components/Card.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
-import { COUNTRY_META } from '../constants/countries.js';
+import { COUNTRY_META } from '../constants/verticals.js';
 
 export default function CountriesTab({ data }) {
   const { T } = useTheme();
   const bc  = data['Bank Connected']  || [];
   const fs  = data['Form Submitted']  || [];
   const all = [...bc, ...fs];
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  if (all.length === 0) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"80px 24px", gap:16, textAlign:"center" }}>
+        <div style={{ width:64, height:64, borderRadius:16, background:T.surface2, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🌍</div>
+        <div style={{ fontSize:18, fontWeight:700, color:T.text, fontFamily:"'Playfair Display',serif", letterSpacing:-0.3 }}>No country data yet</div>
+        <div style={{ fontSize:13, color:T.muted, maxWidth:380, lineHeight:1.6 }}>
+          Once leads are loaded, this tab shows per-country BC rates, average income, loan demand, and top loan purposes.
+        </div>
+        <div style={{ display:"flex", gap:8, marginTop:4 }}>
+          {[["🇪🇸","Spain"],["🇵🇹","Portugal"],["🇫🇷","France"],["🇮🇹","Italy"],["🇩🇪","Germany"]].map(([flag,label])=>(
+            <div key={label} style={{ padding:"10px 14px", borderRadius:10, border:`1px dashed ${T.border}`, background:T.surface2, textAlign:"center", opacity:0.5 }}>
+              <div style={{ fontSize:22 }}>{flag}</div>
+              <div style={{ fontSize:10, fontWeight:600, color:T.muted, marginTop:3 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isEnriched = all.some(r => r.income != null);
   const fmtK = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
