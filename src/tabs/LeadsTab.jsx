@@ -83,7 +83,11 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     return () => document.removeEventListener("mousedown", handler);
   }, [showPurposeMenu]);
 
-  const allLeads = useMemo(() => (data[cat] || []).map(r => ({ ...r, cat })), [data, cat]);
+  // Summary stats derived from filtered leads (computed after filter memo below)
+
+  const allPurposes  = useMemo(() => [...new Set(allLeads.map(r => r.purpose).filter(Boolean))].sort(), [allLeads]);
+  const allCountries = useMemo(() => [...new Set(allLeads.map(r => r.country).filter(Boolean))].sort(), [allLeads]);
+  const allEmp       = useMemo(() => [...new Set(allLeads.map(r => (r.employment || "")).filter(Boolean))].sort(), [allLeads]);
 
   // Per-purpose counts from full category (not filtered) for count badges
   const purposeCounts = useMemo(() => {
@@ -108,25 +112,15 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
     filtered,           hasFilters, clearFilters,
   } = useLeadFilters({ allLeads, starredEmails, defaultSort: readPrefs().tableSort || defaultSort || "created" });
 
-  // sortBy comes from useLeadFilters — this effect MUST be after the hook call
-  useEffect(() => { savePrefs({ tableSort: sortBy }); }, [sortBy]); // eslint-disable-line react-hooks/rules-of-hooks
+  const bcFiltered       = filtered.filter(r => r.cat === "Bank Connected");
+  const emailVerifCount  = filtered.filter(r => r.emailVerified).length;
+  const incomes          = filtered.map(r => r.income).filter(Boolean);
+  const loans            = filtered.map(r => r.loanAmount).filter(Boolean);
+  const summAvgIncome    = incomes.length ? Math.round(incomes.reduce((s, v) => s + v, 0) / incomes.length) : null;
+  const summAvgLoan      = loans.length   ? Math.round(loans.reduce((s, v) => s + v, 0) / loans.length)   : null;
+  const fmtK = n => n >= 1000 ? `€${(n / 1000).toFixed(0)}k` : `€${n}`;
 
-  // Apply topN as the final slice — runs after all other filters
-  const visibleRows = topN > 0 ? filtered.slice(0, topN) : filtered;
-
-  // ── Summary stats for footer ──────────────────────────────────────────────
-  const summaryStats = (() => {
-    if (filtered.length === 0) return null;
-    const withIncome  = filtered.filter(r => r.income > 0);
-    const withLoan    = filtered.filter(r => r.loanAmount > 0);
-    const withScore   = filtered.filter(r => r.score != null);
-    const avgIncome   = withIncome.length  ? Math.round(withIncome.reduce((s, r)  => s + r.income, 0)      / withIncome.length)  : null;
-    const avgLoan     = withLoan.length    ? Math.round(withLoan.reduce((s, r)    => s + r.loanAmount, 0)  / withLoan.length)    : null;
-    const avgScore    = withScore.length   ? Math.round(withScore.reduce((s, r)   => s + r.score, 0)       / withScore.length)   : null;
-    const bcCount     = filtered.filter(r => r.cat === "Bank Connected").length;
-    const verifiedCnt = filtered.filter(r => r.emailVerified).length;
-    return { avgIncome, avgLoan, avgScore, bcCount, verifiedCnt, total: filtered.length };
-  })();
+  const visibleColList = ALL_COLUMNS.filter(c => c.always || visibleCols.has(c.key));
 
   const toggleCol = (key) => {
     setVisibleCols(prev => {
@@ -151,10 +145,11 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
   const activePurposeCount = loanPurposeFilters.size;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "188px 1fr", gap: 16 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "188px 1fr", gap: 16, alignItems: "start" }}>
 
-      {/* Category sidebar */}
-      <Card style={{ padding: "12px 10px", height: "fit-content" }}>
+      {/* Left column: categories + summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <Card style={{ padding: "12px 10px" }}>
         <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, marginBottom: 10, letterSpacing: 1.5, textTransform: "uppercase", padding: "0 6px" }}>Categories</div>
         {["Bank Connected", "Form Submitted", "Incomplete"].map(c => {
           const count = (data[c] || []).length, active = cat === c, s = CAT_STYLE[c];
@@ -175,6 +170,27 @@ export default function LeadsTab({ data, starredEmails = new Set(), toggleStar =
           );
         })}
       </Card>
+
+      {/* Summary stats */}
+      <Card style={{ padding: "14px 16px" }}>
+        <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, marginBottom: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>Showing</div>
+        <div style={{ fontSize: 22, fontWeight: 900, color: T.text, marginBottom: 10 }}>{filtered.length} <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>leads</span></div>
+        {[
+          { label: "Bank Connected",  value: `${bcFiltered.length}`,              sub: filtered.length ? `${Math.round(bcFiltered.length / filtered.length * 100)}%` : null, color: T.green },
+          { label: "Email Verified",  value: `${emailVerifCount}`,                sub: filtered.length ? `${Math.round(emailVerifCount / filtered.length * 100)}%` : null,  color: T.blue },
+          { label: "Avg Income",      value: summAvgIncome ? fmtK(summAvgIncome) + "/mo" : "—", sub: null, color: T.navy },
+          { label: "Avg Loan",        value: summAvgLoan   ? fmtK(summAvgLoan)            : "—", sub: null, color: T.navy },
+        ].map(({ label, value, sub, color }) => (
+          <div key={label} style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color }}>
+              {value}{sub && <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, marginLeft: 4 }}>({sub})</span>}
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      </div>{/* end left column */}
 
       <Card>
         {/* Toolbar row 1 */}
